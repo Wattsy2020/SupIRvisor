@@ -49,7 +49,7 @@ def extract_paper_data(paper_tags: List[bs4.element.Tag]) -> List[Paper]:
     return papers
 
 
-def main():
+def main() -> None:
     paper_tags = get_paper_tags("https://sigir.org/sigir2022/program/accepted/")
     paper_data = extract_paper_data(paper_tags) # Extract and Store papers as a Paper object, with title, authors and type
     # Then store authors in a class, with a dict mapping to accumulate paper data

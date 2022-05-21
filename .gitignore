@@ -1,0 +1,3 @@
+*.json
+*.ini
+.mypy_cache/*

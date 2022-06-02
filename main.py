@@ -20,6 +20,17 @@ class Authorship(object):
     title: str = attr.field()
     author_name: str = attr.field()
 
+@attr.define(hash=True)
+class Author(object):
+    """Represents an author"""
+    author_name: str = attr.field(hash=True, eq=True, order=True) # use the name to hash authors
+
+    # These attributes will be populated after initialisation
+    scholar_link: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False)
+    institution: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False)
+    citations: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
+    h_index: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
+
 
 def get_paper_tags(url: str) -> List[bs4.element.Tag]:
     """Retrieve all the paragraph tags on the SIGIR page"""
@@ -61,16 +72,23 @@ def extract_paper_data(paper_tags: List[bs4.element.Tag]) -> Tuple[List[Paper], 
                 authorships.append(Authorship(title, author))
     return papers, authorships
 
+def extract_author_data(authorships: List[Authorship]) -> List[Author]:
+    """Create authors and extract their data from google scholar"""
+    authors = {Author(authorship.author_name) for authorship in authorships}
+    authors = list(authors)
+    # TODO: get data from google scholar for each
+    return authors
+
 
 def main() -> None:
-    paper_tags = get_paper_tags("https://sigir.org/sigir2022/program/accepted/")
-    paper_data = extract_paper_data(paper_tags) # Extract and Store papers as a Paper object, with title, authors and type
-    # Then store authors in a class, with a dict mapping to accumulate paper data
-    # Add in extra info from google scholar
+    paper_tags = get_paper_tags("https://sigir.org/sigir2022/program/accepted/") # Get all html elements that represent a paper
+    papers, authorships = extract_paper_data(paper_tags) # Extract and Store papers as a Paper object, with title, authors and type
+    authors = extract_author_data(authorships) # store authors in a class, then add in extra info from google scholar
     # Convert to pandas dataframe and write to csv
-    print(paper_data[0][:10])
-    print(paper_data[1])
-    print(attr.asdict(paper_data[1][0]))
+    print("Papers:", papers[:10])
+    print("Authorships:", authorships[:10])
+    print("Authors:", authors[:10])
+    print("Authorship as dict:", attr.asdict(authorships[0]))
 
 
 if __name__ == "__main__":

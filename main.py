@@ -1,10 +1,12 @@
 from posixpath import split
+from re import search
 import requests
 import bs4
 import pandas as pd
 import attr
+from scholarly import scholarly
 
-from typing import List, Tuple, Dict, Set, Union, Optional, Any
+from typing import Optional, Any
 
 
 @attr.define
@@ -29,10 +31,10 @@ class Author(object):
     scholar_link: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False)
     institution: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False)
     citations: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
-    h_index: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
+    interests: Optional[list[str]] = attr.field(default=None, hash=False, eq=False, order=False)
 
 
-def get_paper_tags(url: str) -> List[bs4.element.Tag]:
+def get_paper_tags(url: str) -> list[bs4.element.Tag]:
     """Retrieve all the paragraph tags on the SIGIR page"""
     response = requests.get(url)
     response.raise_for_status()
@@ -43,7 +45,7 @@ def get_paper_tags(url: str) -> List[bs4.element.Tag]:
     return paragraphs
 
 
-def split_authors(author_str: str) -> List[str]:
+def split_authors(author_str: str) -> list[str]:
     """Split the typical academic list of authors into a list of strings"""
     authors = author_str.strip().split(" and ")
     split_authors = authors[0].split(", ")
@@ -55,7 +57,7 @@ def split_authors(author_str: str) -> List[str]:
     return split_authors
 
 
-def extract_paper_data(paper_tags: List[bs4.element.Tag]) -> Tuple[List[Paper], List[Authorship]]:
+def extract_paper_data(paper_tags: list[bs4.element.Tag]) -> tuple[list[Paper], list[Authorship]]:
     """Extract authorship, title and type information from the paper tags"""
     papers = []
     authorships = []
@@ -72,23 +74,39 @@ def extract_paper_data(paper_tags: List[bs4.element.Tag]) -> Tuple[List[Paper], 
                 authorships.append(Authorship(title, author))
     return papers, authorships
 
-def extract_author_data(authorships: List[Authorship]) -> List[Author]:
+
+def extract_author_data(authorships: list[Authorship]) -> list[Author]:
     """Create authors and extract their data from google scholar"""
     unique_authors = {Author(authorship.author_name) for authorship in authorships}
     authors = list(unique_authors)
-    # TODO: get data from google scholar for each
+
+    # Retrieve data from scholarly for each author
+    for author in authors:
+        author.author_name = author.author_name.lower().strip()
+        search_result: dict[str, Any] = next(scholarly.search_author(author.author_name), None) # only look at the top search result, to reduce network request time
+        if search_result is None: # No results for this author
+            continue
+
+        # only add details if an exact match for the name was found
+        if search_result["name"].lower().strip() == author.author_name:
+            author.citations = search_result["citedby"] if "citedby" in search_result else None
+            author.institution = search_result["affiliation"] if "affiliation" in search_result else None
+            author.interests = search_result["interests"] if "interests" in search_result else None
+            author.scholar_link = f"https://scholar.google.com/citations?user={search_result['scholar_id']}"
+        print("Parsed new author:", author)
     return authors
 
 
 def main() -> None:
     paper_tags = get_paper_tags("https://sigir.org/sigir2022/program/accepted/") # Get all html elements that represent a paper
     papers, authorships = extract_paper_data(paper_tags) # Extract and Store papers as a Paper object, with title, authors and type
-    authors = extract_author_data(authorships) # store authors in a class, then add in extra info from google scholar
-    # Convert to pandas dataframe and write to csv
     print("Papers:", papers[:10])
     print("Authorships:", authorships[:10])
+
+    authors = extract_author_data(authorships) # store authors in a class, then add in extra info from google scholar
     print("Authors:", authors[:10])
-    print("Authorship as dict:", attr.asdict(authorships[0]))
+
+    # TODO: Convert to pandas dataframes and write to csv
 
 
 if __name__ == "__main__":

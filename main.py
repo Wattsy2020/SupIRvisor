@@ -65,7 +65,7 @@ def extract_paper_data(paper_tags: List[bs4.element.Tag]) -> Tuple[List[Paper], 
             current_paper_type = tag.a["name"]
         else: # extract the paper
             title = tag.b.text.strip() # titles are bolded
-            author_str = tag.find(text=True, recursive=False)
+            author_str = tag.find(string=True, recursive=False)
             authors = split_authors(author_str)
             papers.append(Paper(title, current_paper_type))
             for author in authors:
@@ -74,8 +74,8 @@ def extract_paper_data(paper_tags: List[bs4.element.Tag]) -> Tuple[List[Paper], 
 
 def extract_author_data(authorships: List[Authorship]) -> List[Author]:
     """Create authors and extract their data from google scholar"""
-    authors = {Author(authorship.author_name) for authorship in authorships}
-    authors = list(authors)
+    unique_authors = {Author(authorship.author_name) for authorship in authorships}
+    authors = list(unique_authors)
     # TODO: get data from google scholar for each
     return authors
 

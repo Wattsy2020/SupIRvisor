@@ -40,3 +40,7 @@ def test_extract_paper_data() -> None:
     # Check that each paper has at least one author
     for title in paper_titles:
         assert title in authorship_titles, "The paper has no author"
+
+# TODO: add tests for data.py
+# TODO: add tests for author_info.py
+# TODO: add tests for main.py

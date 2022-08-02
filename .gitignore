@@ -3,3 +3,4 @@
 *.pyc
 *.log
 .mypy_cache/*
+outputs/*

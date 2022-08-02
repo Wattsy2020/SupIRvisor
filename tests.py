@@ -1,23 +1,28 @@
-import main
+"""Test all modules"""
 import bs4
+
+import data
+import sigir_extract
+import author_info
+import main
 
 
 def test_split_authors() -> None:
-    assert main.split_authors("test1 test2, author1 author2 and author3 author4") == ["test1 test2", "author1 author2", "author3 author4"], "Fails to recognise `and`"
-    assert main.split_authors("Test1 test2") == ["Test1 test2"], "Fails to recognise single authors"
-    assert main.split_authors("af1 al1, af2 al2") == ["af1 al1", "af2 al2"], "Fails to recognise authors separated only by commas"
+    assert sigir_extract.split_authors("test1 test2, author1 author2 and author3 author4") == ["test1 test2", "author1 author2", "author3 author4"], "Fails to recognise `and`"
+    assert sigir_extract.split_authors("Test1 test2") == ["Test1 test2"], "Fails to recognise single authors"
+    assert sigir_extract.split_authors("af1 al1, af2 al2") == ["af1 al1", "af2 al2"], "Fails to recognise authors separated only by commas"
 
 
 def test_get_paper_tags() -> None:
     # Check that they are tags, there's not much else we can test
-    results = main.get_paper_tags("https://sigir.org/sigir2022/program/accepted/")
+    results = sigir_extract.get_paper_tags("https://sigir.org/sigir2022/program/accepted/")
     for result in results:
         assert isinstance(result, bs4.element.Tag)
 
 
 def test_extract_paper_data() -> None:
-    tags = main.get_paper_tags("https://sigir.org/sigir2022/program/accepted/")
-    papers, authorships = main.extract_paper_data(tags)
+    tags = sigir_extract.get_paper_tags("https://sigir.org/sigir2022/program/accepted/")
+    papers, authorships = sigir_extract.extract_paper_data(tags)
 
     # Check that the papers are unique and have one of the four correct types
     paper_titles = set()

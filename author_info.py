@@ -1,32 +1,60 @@
 """Provides functions that extract further data of each author from google scholar"""
-from scholarly import scholarly
-from typing import Any
+import requests
 
 from data import Authorship, Author
 
+# Cache the results for each query, using a key value pair of Author name to Author data (actual value needs to be a list of authors with the same name)
+    # Then look in the cache first before making a ScraperAPI request (to save money)
+    # Persist the cache to disk at end of program 
+    # (maybe it should be a global object created by this file, that has a destructor which persists the cache to disk, and a constructor that reads from it)
+class SemanticScholarQuerier:
+    """Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions"""
+    # Read cache in constructor
+    
+    # Write cache in destructor
+
+    # Have a method for querying, that checks if a query is in the cache first
+        # returns a generator, that returns further results for the same query if they are needed
+
+
+
 def extract_author_data(authorships: list[Authorship]) -> list[Author]:
     """Create authors and extract their data from google scholar"""
-    unique_authors = {Author(authorship.author_name) for authorship in authorships}
-    authors = list(unique_authors)
-    # Convert authorships to a dataframe so we can find all co-authors for a given author (using a self merge)
+    authors: set[Author] = set()
 
-    # Retrieve data from scholarly for each author
-    for author in authors:
-        search_result_gen = scholarly.search_author(author.author_name)
-        try:
-            search_result: dict[str, Any] = next(search_result_gen) # only look at the top search result, to reduce network request time
-        except StopIteration: # No results for this author
+    # Retrieve data from semantic scholar for each author
+    for authorship in authorships:
+        # only add new authors
+        if Author(authorship.author_name) in authors:
             continue
+        
+        # Search for paper
+        response = requests.get(f"https://api.semanticscholar.org/graph/v1/paper/search?query={authorship.title}&fields=authors")
+        response.raise_for_status()
+        paper_json = response.json()
+        if paper_json["total"] == 0: # check for results
+            continue
+        top_result = paper_json["data"][0]
 
-        # only add details if an exact match for the name was found
-        if search_result["name"].lower().strip() == author.author_name:
-            # TODO: check if there is significant overlap with the coauthors, if not keep searching
-            author.citations = search_result["citedby"] if "citedby" in search_result else None
-            author.institution = search_result["affiliation"] if "affiliation" in search_result else None
-            author.interests = search_result["interests"] if "interests" in search_result else None
-            author.scholar_link = f"https://scholar.google.com/citations?user={search_result['scholar_id']}"
-        print("Parsed new author:", author)
-    return authors
+        # Retrieve and add author details for the entire paper
+        for author_id_json in top_result["authors"]:
+            author = Author(author_id_json["name"])
+            if author in authors:
+                continue
+
+            # query API and add as much data as we can
+            response = requests.get(f"https://api.semanticscholar.org/graph/v1/author/{author_id_json['authorId']}?fields=affiliations,paperCount,citationCount,hIndex")
+            response.raise_for_status()
+            author_json = response.json()
+            author.citations = author_json["citationCount"]
+            author.paper_count = author_json["paperCount"]
+            author.h_index = author_json["hIndex"]
+            if author_json["affiliations"]:
+                author.institution = author_json["affiliations"][0]
+            
+            authors.add(author)
+            print(author)
+    return list(authors)
 
 
 def get_author_data(authorships: list[Authorship]) -> list[Author]:

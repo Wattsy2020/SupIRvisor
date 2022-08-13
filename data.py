@@ -21,7 +21,7 @@ class Author(object):
     author_name: str = attr.field(hash=True, eq=True, order=True) # use the name to hash authors
 
     # These attributes will be populated after initialisation
-    scholar_link: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False)
-    institution: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False)
+    institution: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False) # not always available in the API
     citations: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
-    interests: Optional[list[str]] = attr.field(default=None, hash=False, eq=False, order=False)
+    paper_count: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
+    h_index: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)

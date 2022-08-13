@@ -1,4 +1,5 @@
 """Provides functions that extract further data of each author from google scholar"""
+from typing import Optional, Any
 import requests
 
 from data import Authorship, Author
@@ -9,18 +10,34 @@ from data import Authorship, Author
     # (maybe it should be a global object created by this file, that has a destructor which persists the cache to disk, and a constructor that reads from it)
 class SemanticScholarQuerier:
     """Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions"""
-    # Read cache in constructor
-    
+    def __init__(self, api_path="https://api.semanticscholar.org/graph/v1"):
+        """Read query cache in constructor"""
+        self.api_path = api_path
+
     # Write cache in destructor
 
-    # Have a method for querying, that checks if a query is in the cache first
-        # returns a generator, that returns further results for the same query if they are needed
+    def __get_json(self, resource_url: str) -> dict[str, Any]:
+        """Return the json for a get request on the given resource url for the SemanticScholar graph API"""
+        response = requests.get(f"{self.api_path}/{resource_url}")
+        response.raise_for_status()
+        return response.json()
+
+    # TODO: check if query is in cache
+    def get_paper(self, title: str) -> Optional[dict[str, Any]]:
+        """Return the paper json, if it exists"""
+        paper_json = self.__get_json(f"paper/search?query={title}&fields=authors")
+        return paper_json["data"][0] if paper_json["total"] != 0 else None
+
+    def get_author(self, id: str) -> dict[str, Any]:
+        """Return the author json for the given id"""
+        return self.__get_json(f"author/{id}?fields=affiliations,paperCount,citationCount,hIndex")
 
 
 
 def extract_author_data(authorships: list[Authorship]) -> list[Author]:
     """Create authors and extract their data from google scholar"""
     authors: set[Author] = set()
+    query_engine = SemanticScholarQuerier()
 
     # Retrieve data from semantic scholar for each author
     for authorship in authorships:
@@ -28,24 +45,19 @@ def extract_author_data(authorships: list[Authorship]) -> list[Author]:
         if Author(authorship.author_name) in authors:
             continue
         
-        # Search for paper
-        response = requests.get(f"https://api.semanticscholar.org/graph/v1/paper/search?query={authorship.title}&fields=authors")
-        response.raise_for_status()
-        paper_json = response.json()
-        if paper_json["total"] == 0: # check for results
+        # Retrieve paper, if it exists
+        paper = query_engine.get_paper(authorship.title)
+        if paper is None:
             continue
-        top_result = paper_json["data"][0]
 
         # Retrieve and add author details for the entire paper
-        for author_id_json in top_result["authors"]:
+        for author_id_json in paper["authors"]:
             author = Author(author_id_json["name"])
             if author in authors:
                 continue
 
-            # query API and add as much data as we can
-            response = requests.get(f"https://api.semanticscholar.org/graph/v1/author/{author_id_json['authorId']}?fields=affiliations,paperCount,citationCount,hIndex")
-            response.raise_for_status()
-            author_json = response.json()
+            # query API and fill in the author object
+            author_json = query_engine.get_author(author_id_json["authorId"])
             author.citations = author_json["citationCount"]
             author.paper_count = author_json["paperCount"]
             author.h_index = author_json["hIndex"]

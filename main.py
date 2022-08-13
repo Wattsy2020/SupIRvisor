@@ -2,6 +2,7 @@
 import os
 import attr
 import pandas as pd
+from typing import Sequence
 
 import sigir_extract
 import author_info
@@ -21,8 +22,13 @@ def make_output_dir(conf: str) -> str:
     return output_dir
 
 
-def write_class_list(objects: list[object], file_name: str) -> None:
-    """Write a list of attrs objects to a csv file"""
+def write_class_list(objects: Sequence[object], file_name: str) -> None:
+    """Write a list of attrs objects to a csv file, overwriting old results"""
+    # Delete the file if it exists
+    if os.path.exists(file_name):
+        os.remove(file_name)
+
+    # Write data to file
     rows = [attr.asdict(obj) for obj in objects]
     df = pd.DataFrame(rows)
     df.to_csv(file_name, index=False)
@@ -31,7 +37,7 @@ def write_class_list(objects: list[object], file_name: str) -> None:
 def main(conf: str) -> None:
     """
     Webscrape the conference site to get author data
-    Use google scholar API to get institution data
+    Use SemanticScholar API to get citation and institution data
     TODO: Perform analysis of this data
         TODO: Create visualisations and tables of the results
     """

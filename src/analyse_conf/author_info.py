@@ -13,6 +13,24 @@ def equal_titles(title1: str, title2: str) -> bool:
     return title1.lower().split(" ")[:3] == title2.lower().split(" ")[:3]
 
 
+def has_author(paper_json: dict[str, Any], author_name: str) -> bool:
+    """Check if `author_name` is an author of the paper"""
+    for author in paper_json["authors"]:
+        if author["name"].lower() == author_name:
+            return True
+    return False
+
+
+def is_same_paper(paper_json: dict[str, Any], title: str, author: str) -> bool:
+    """
+    Check if a paper returned by search API matches the query
+    A paper matches if it has the same title, or is written by the same author (the name likely changed)
+    """
+    if equal_titles(paper_json["title"], title):
+        return True
+    return has_author(paper_json, author)
+
+
 class SemanticScholarQuerier:
     """
     Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions
@@ -51,15 +69,20 @@ class SemanticScholarQuerier:
 
     def __search_paper(self, query: str) -> dict[str, Any]:
         """Convert paper search query to a url, and search for it"""
-        query = "+".join(query.split(" ")) # replace spaces with + to fit the search API
+        query = query.replace(" ", "+") # replace spaces with + to fit the search API
+        query = query.replace("-", "+") # replace dashes with + to fit the search API
         query_url = f"paper/search?query={query}&fields=authors,title"
         return self.__get_json(query_url)
 
-    def get_paper(self, title: str) -> Optional[dict[str, Any]]:
-        """Search for a paper and return its json object"""
+    def get_paper(self, title: str, author: str) -> Optional[dict[str, Any]]:
+        """Given a title, and one author: search for a paper and return its json object"""
         paper_json = self.__search_paper(title)
 
-        # If the search has no results: remove words from the end of the title (sometimes missing spaces confuses SemanticScholar)
+        # If the search has no results, the paper might have been renamed, search again with the author appended to the query
+        if paper_json["total"] == 0:
+            paper_json = self.__search_paper(f"{title} {author}")
+
+        # If the search still no results: remove words from the end of the title (sometimes missing spaces confuses SemanticScholar)
         while paper_json["total"] == 0:
             title_words = title.split(" ")
             if len(title_words) < 3: # too few search terms will give a poor result, so treat the paper as unfindable
@@ -67,10 +90,10 @@ class SemanticScholarQuerier:
             title = " ".join(title_words[:-1])
             paper_json = self.__search_paper(title)
 
-        # If the top paper doesn't have a matching title, look at the next results
+        # If the top paper doesn't have a matching author, look at the next results (note: it may have been renamed, but by the same author)
         paper_idx = 0
         total_papers = len(paper_json["data"])
-        while not equal_titles(paper_json["data"][paper_idx]["title"], title):
+        while not is_same_paper(paper_json["data"][paper_idx], title, author):
             paper_idx += 1
             if paper_idx == total_papers: # no matches found in all the results
                 return None
@@ -88,9 +111,13 @@ def get_author_data(authorships: list[Authorship]) -> list[Author]:
     seen_author_ids: set[str] = set()
 
     with SemanticScholarQuerier() as query_engine:
+        last_paper_title = ""
         for authorship in authorships:
-            # Retrieve paper, if it exists
-            paper = query_engine.get_paper(authorship.title)
+            # Retrieve paper, if it's a new one
+            if authorship.title == last_paper_title:
+                continue
+            last_paper_title = authorship.title
+            paper = query_engine.get_paper(authorship.title, authorship.author_name)
             if paper is None:
                 continue
 

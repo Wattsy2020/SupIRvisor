@@ -14,11 +14,13 @@ class Authorship(object):
     """Intermediate class to represent the many-to-many relationship between papers and authors"""
     title: str = attr.field()
     author_name: str = attr.field()
+    author_id: Optional[str] = attr.field(default=None) # the SemanticScholar authorId, to be populated later
 
 @attr.define(hash=True)
 class Author(object):
     """Represents an author"""
-    author_name: str = attr.field(hash=True, eq=True, order=True) # use the name to hash authors
+    author_name: str = attr.field(hash=True, eq=True, order=True) # name can be used for comparison, but is unreliable as there are duplicates
+    author_id: str = attr.field(hash=True, eq=True, order=True) # use the SemanticScholar authorId to uniquely identify authors
 
     # These attributes will be populated after initialisation
     institution: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False) # not always available in the API

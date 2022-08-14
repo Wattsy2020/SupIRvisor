@@ -82,34 +82,33 @@ class SemanticScholarQuerier:
 
 
 def get_author_data(authorships: list[Authorship]) -> list[Author]:
-    """Create authors and extract their data from google scholar"""
-    authors: set[Author] = set()
+    """Create authors and extract their data from SemanticScholar"""
+    authors: list[Author] = []
+    seen_author_ids: set[str] = set()
+
     with SemanticScholarQuerier() as query_engine:
-        # Retrieve data from semantic scholar for each author
         for authorship in authorships:
-            # only add new authors
-            if Author(authorship.author_name) in authors:
-                continue
-            
             # Retrieve paper, if it exists
             paper = query_engine.get_paper(authorship.title)
             if paper is None:
                 continue
 
-            # Retrieve and add author details for the entire paper
+            # Retrieve and add all new author details
             for author_id_json in paper["authors"]:
-                author = Author(author_id_json["name"])
-                if author in authors:
+                author_id = author_id_json["authorId"]
+                if author_id in seen_author_ids:
                     continue
+                seen_author_ids.add(author_id)
 
                 # query API and fill in the author object
                 author_json = query_engine.get_author(author_id_json["authorId"])
+                author = Author(author_id_json["name"], author_id)
                 author.citations = author_json["citationCount"]
                 author.paper_count = author_json["paperCount"]
                 author.h_index = author_json["hIndex"]
                 if author_json["affiliations"]:
                     author.institution = author_json["affiliations"][0]
                 
-                authors.add(author)
+                authors.append(author)
                 print(author)
-    return list(authors)
+    return authors

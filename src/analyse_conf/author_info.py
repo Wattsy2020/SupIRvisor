@@ -66,12 +66,13 @@ class SemanticScholarQuerier:
                 return None
             title = " ".join(title_words[:-1])
             paper_json = self.__search_paper(title)
-        
+
         # If the top paper doesn't have a matching title, look at the next results
         paper_idx = 0
+        total_papers = len(paper_json["data"])
         while not equal_titles(paper_json["data"][paper_idx]["title"], title):
             paper_idx += 1
-            if paper_idx == paper_json["total"]: # no matches found in all the results
+            if paper_idx == total_papers: # no matches found in all the results
                 return None
         
         return paper_json["data"][paper_idx]

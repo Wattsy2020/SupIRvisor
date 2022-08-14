@@ -11,7 +11,7 @@ def test_get_paper() -> None:
     """Test that a subset of papers from SIGIR can be found using SemanticScholarQuerier.get_paper"""
     papers, _ = sigir_extract.extract_data()
     with SemanticScholarQuerier() as query_engine:
-        for paper in papers[:10]:
+        for paper in papers:
             paper_json = query_engine.get_paper(paper.title)
             assert paper_json is not None, f"No paper found for {paper.title=}"
             assert "authors" in paper_json, f"Authors field isn't returned for {paper.title=}"

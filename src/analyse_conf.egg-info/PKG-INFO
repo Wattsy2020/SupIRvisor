@@ -1,0 +1,8 @@
+Metadata-Version: 2.1
+Name: analyse-conf
+Version: 0.0.0
+Summary: computes statistics for papers and authors at a conference
+Author: Liam Watts
+Platform: win32
+Classifier: Programming Language :: Python :: 3.10
+Requires-Python: >=3.10

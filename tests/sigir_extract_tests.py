@@ -1,10 +1,7 @@
-"""Test all modules"""
+"""Test sigir_extract.py"""
 import bs4
 
-import data
-import sigir_extract
-import author_info
-import main
+from analyse_conf import sigir_extract
 
 
 def test_split_authors() -> None:
@@ -40,7 +37,3 @@ def test_extract_paper_data() -> None:
     # Check that each paper has at least one author
     for title in paper_titles:
         assert title in authorship_titles, "The paper has no author"
-
-# TODO: add tests for data.py
-# TODO: add tests for author_info.py
-# TODO: add tests for main.py

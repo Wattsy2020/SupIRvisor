@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+setup.cfg
+setup.py
+src/analyse_conf/__init__.py
+src/analyse_conf/author_info.py
+src/analyse_conf/data.py
+src/analyse_conf/main.py
+src/analyse_conf/sigir_extract.py
+src/analyse_conf.egg-info/PKG-INFO
+src/analyse_conf.egg-info/SOURCES.txt
+src/analyse_conf.egg-info/dependency_links.txt
+src/analyse_conf.egg-info/not-zip-safe
+src/analyse_conf.egg-info/requires.txt
+src/analyse_conf.egg-info/top_level.txt

@@ -3,4 +3,4 @@
 mypy main.py
 mypy src/analyse_conf/*.py
 mypy tests/*.py
-pytest tests/*.py
+pytest -v tests/*.py

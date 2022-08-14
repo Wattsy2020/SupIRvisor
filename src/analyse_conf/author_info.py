@@ -1,6 +1,7 @@
 """Provides functions that extract further data of each author from google scholar"""
 import os
 import pickle
+from sys import api_version
 import requests
 from typing import Optional, Any
 
@@ -12,7 +13,6 @@ class SemanticScholarQuerier:
     Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions
     Should ALWAYS be used with the WITH keyword (to load and write the cache)
     """
-    
     def __init__(self, api_path="https://api.semanticscholar.org/graph/v1", cache_path=".api_cache"):
         self.__api_path = api_path
         self.__cache_path = cache_path
@@ -44,10 +44,23 @@ class SemanticScholarQuerier:
         self.__cache[resource_url] = json
         return json
 
+    def __search_paper(self, query: str) -> dict[str, Any]:
+        """Convert paper search query to a url, and search for it"""
+        query = "+".join(query.split(" ")) # replace spaces with + to fit the search API
+        query_url = f"paper/search?query={query}&fields=authors,title"
+        return self.__get_json(query_url)
+
     def get_paper(self, title: str) -> Optional[dict[str, Any]]:
-        """Return the paper json, if it exists"""
-        paper_json = self.__get_json(f"paper/search?query={title}&fields=authors")
-        return paper_json["data"][0] if paper_json["total"] != 0 else None
+        """Search for a paper and return its json object"""
+        # If the search has no results: remove words from the end of the title (sometimes missing spaces confuses SemanticScholar)
+        while (paper_json := self.__search_paper(title))["total"] == 0:
+            title_words = title.split(" ")
+            if len(title_words) < 3: # too few search terms will give a poor result, so treat the paper as unfindable
+                return None
+            title = " ".join(title_words[:-1])
+        
+        # TODO: If the top paper doesn't have a matching title, look at the next results
+        return paper_json["data"][0]
 
     def get_author(self, id: str) -> dict[str, Any]:
         """Return the author json for the given id"""

@@ -4,8 +4,8 @@ import attr
 import pandas as pd
 from typing import Sequence
 
-import sigir_extract
-import author_info
+from analyse_conf import sigir_extract
+from analyse_conf import author_info
 
 conference_to_webscraper = {
     "SIGIR2022": sigir_extract
@@ -34,7 +34,7 @@ def write_class_list(objects: Sequence[object], file_name: str) -> None:
     df.to_csv(file_name, index=False)
 
 
-def main(conf: str) -> None:
+def analyse_conf(conf: str) -> None:
     """
     Webscrape the conference site to get author data
     Use SemanticScholar API to get citation and institution data
@@ -56,4 +56,4 @@ def main(conf: str) -> None:
 
 
 if __name__ == "__main__":
-    main("SIGIR2022")
+    analyse_conf("SIGIR2022")

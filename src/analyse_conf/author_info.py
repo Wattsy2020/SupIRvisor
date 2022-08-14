@@ -2,7 +2,7 @@
 from typing import Optional, Any
 import requests
 
-from data import Authorship, Author
+from analyse_conf.data import Authorship, Author
 
 # Cache the results for each query, using a key value pair of Author name to Author data (actual value needs to be a list of authors with the same name)
     # Then look in the cache first before making a ScraperAPI request (to save money)

@@ -5,7 +5,7 @@ from the SIGIR2022 Accepted paper list, located here: https://sigir.org/sigir202
 import requests
 import bs4
 
-from data import Paper, Authorship
+from analyse_conf.data import Paper, Authorship
 
 
 def get_paper_tags(url: str) -> list[bs4.element.Tag]:

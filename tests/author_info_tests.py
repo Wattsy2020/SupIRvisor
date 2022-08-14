@@ -13,7 +13,6 @@ def test_get_paper() -> None:
     with SemanticScholarQuerier() as query_engine:
         for paper in papers[:10]:
             paper_json = query_engine.get_paper(paper.title)
-            print(paper_json)
             assert paper_json is not None, f"No paper found for {paper.title=}"
             assert "authors" in paper_json, f"Authors field isn't returned for {paper.title=}"
             assert len(paper_json["authors"]) >= 1, f"There are no authors for a paper for {paper.title=}"

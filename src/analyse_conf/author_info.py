@@ -8,6 +8,11 @@ from typing import Optional, Any
 from analyse_conf.data import Authorship, Author
 
 
+def equal_titles(title1: str, title2: str) -> bool:
+    """Compare the first three words of each title to check for equality"""
+    return title1.lower().split(" ")[:3] == title2.lower().split(" ")[:3]
+
+
 class SemanticScholarQuerier:
     """
     Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions
@@ -52,15 +57,24 @@ class SemanticScholarQuerier:
 
     def get_paper(self, title: str) -> Optional[dict[str, Any]]:
         """Search for a paper and return its json object"""
+        paper_json = self.__search_paper(title)
+
         # If the search has no results: remove words from the end of the title (sometimes missing spaces confuses SemanticScholar)
-        while (paper_json := self.__search_paper(title))["total"] == 0:
+        while paper_json["total"] == 0:
             title_words = title.split(" ")
             if len(title_words) < 3: # too few search terms will give a poor result, so treat the paper as unfindable
                 return None
             title = " ".join(title_words[:-1])
+            paper_json = self.__search_paper(title)
         
-        # TODO: If the top paper doesn't have a matching title, look at the next results
-        return paper_json["data"][0]
+        # If the top paper doesn't have a matching title, look at the next results
+        paper_idx = 0
+        while not equal_titles(paper_json["data"][paper_idx]["title"], title):
+            paper_idx += 1
+            if paper_idx == paper_json["total"]: # no matches found in all the results
+                return None
+        
+        return paper_json["data"][paper_idx]
 
     def get_author(self, id: str) -> dict[str, Any]:
         """Return the author json for the given id"""

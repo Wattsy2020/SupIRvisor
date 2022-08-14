@@ -1,7 +1,7 @@
 """Provides functions that extract further data of each author from google scholar"""
 import os
+import re
 import pickle
-from sys import api_version
 import requests
 from typing import Optional, Any
 
@@ -69,8 +69,7 @@ class SemanticScholarQuerier:
 
     def __search_paper(self, query: str) -> dict[str, Any]:
         """Convert paper search query to a url, and search for it"""
-        query = query.replace(" ", "+") # replace spaces with + to fit the search API
-        query = query.replace("-", "+") # replace dashes with + to fit the search API
+        query = re.sub(r"[^\w]", "+", query) # replace spaces and all punctuation with + to fit the search API
         query_url = f"paper/search?query={query}&fields=authors,title"
         return self.__get_json(query_url)
 

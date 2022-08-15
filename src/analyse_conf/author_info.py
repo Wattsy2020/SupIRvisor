@@ -2,8 +2,10 @@
 import os
 import re
 import time
+import math
 import pickle
 import requests
+import Levenshtein
 from typing import Optional, Any
 
 from analyse_conf.data import Paper, Authorship, Author
@@ -137,7 +139,18 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 author.h_index = author_json["hIndex"]
                 if author_json["affiliations"]:
                     author.institution = author_json["affiliations"][0]
-                
                 authors.append(author)
                 print(author)
+
+                # Add author_id to the paper authorship info, to distinguish between different authors with similar names
+                # If number of authors is consistent: Add the author with the lowest Levenshtein distance, otherwise require less than 5 levenshtein distance
+                # (note some authors leave out middle names, so exact string matching is not possible)
+                consistent_authors = len(paper_json["authors"]) == len(paper.authorships)
+                min_dist = math.inf
+                for authorship in paper.authorships:
+                    dist = Levenshtein.distance(author_id_json["name"], authorship.author_name)
+                    if dist < min_dist:
+                        min_dist = dist
+                        if consistent_authors or dist < 5:
+                            authorship.author_id = author_id_json["authorId"]
     return authors

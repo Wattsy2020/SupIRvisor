@@ -25,6 +25,20 @@ def test_get_paper() -> None:
                 f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
 
 
+def test_get_paper_author_consistency() -> None:
+    """Calculate the number of papers for which not all authors are represented by the SemanticScholar API"""
+    papers = sigir_extract.extract_data()
+    num_inconsistent_authors = 0
+    with SemanticScholarQuerier() as query_engine:
+        for paper in papers:
+            paper_json = query_engine.get_paper(paper)
+            if paper_json is None:
+                continue
+            if len(paper_json["authors"]) != len(paper.authorships):
+                num_inconsistent_authors += 1
+    warnings.warn(f"For {num_inconsistent_authors} papers, not all authors are found by the SemanticScholar API")
+
+
 def test_get_author() -> None:
     """Test that SemanticScholarQuerier.get_author returns all the required fields"""
     with SemanticScholarQuerier() as query_engine:

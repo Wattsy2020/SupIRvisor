@@ -19,7 +19,7 @@ def test_get_paper_tags() -> None:
 
 def test_extract_paper_data() -> None:
     tags = sigir_extract.get_paper_tags("https://sigir.org/sigir2022/program/accepted/")
-    papers, authorships = sigir_extract.extract_paper_data(tags)
+    papers = sigir_extract.extract_paper_data(tags)
 
     # Check that the papers are unique and have one of the four correct types
     paper_titles = set()
@@ -30,9 +30,10 @@ def test_extract_paper_data() -> None:
 
     # Check that the authorships contain valid papers,
     authorship_titles = set()
-    for authorship in authorships:
-        assert authorship.title in paper_titles, "The paper does not exist"
-        authorship_titles.add(authorship.title)
+    for paper in papers:
+        for authorship in paper.authorships:
+            assert authorship.title in paper_titles, "The paper does not exist"
+            authorship_titles.add(authorship.title)
 
     # Check that each paper has at least one author
     for title in paper_titles:

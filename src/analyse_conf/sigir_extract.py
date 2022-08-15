@@ -31,27 +31,27 @@ def split_authors(author_str: str) -> list[str]:
     return split_authors
 
 
-def extract_paper_data(paper_tags: list[bs4.element.Tag]) -> tuple[list[Paper], list[Authorship]]:
+def extract_paper_data(paper_tags: list[bs4.element.Tag]) -> list[Paper]:
     """Extract authorship, title and type information from the paper tags"""
     papers = []
-    authorships = []
     current_paper_type: str
     for tag in paper_tags:
         if tag.find("a") is not None: # this tag contains a link and indicates the paper section
             current_paper_type = tag.a["name"]
         else: # extract the paper
             title = tag.b.text.strip() # titles are bolded
+            paper = Paper(title, current_paper_type)
+
             author_str = tag.find(string=True, recursive=False)
             authors = split_authors(author_str)
-            papers.append(Paper(title, current_paper_type))
             for author in authors:
-                author = author.lower().strip()
-                authorships.append(Authorship(title, author))
-    return papers, authorships
+                authorship = Authorship(title, author.lower().strip())
+                paper.authorships.append(authorship)
+            papers.append(paper)
+    return papers
 
 
-def extract_data() -> tuple[list[Paper], list[Authorship]]:
+def extract_data() -> list[Paper]:
     """Return the paper and authorship data for SIGIR2022"""
     paper_tags = get_paper_tags("https://sigir.org/sigir2022/program/accepted/") # Get all html elements that represent a paper
-    papers, authorships = extract_paper_data(paper_tags) # Extract and Store papers as a Paper object, with title, authors and type
-    return papers, authorships
+    return extract_paper_data(paper_tags) # Extract and Store papers as a Paper object, with title, authors and type

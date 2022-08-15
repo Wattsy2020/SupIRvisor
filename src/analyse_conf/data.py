@@ -8,6 +8,7 @@ class Paper(object):
     """Simple class to store information about a paper"""
     title: str = attr.field()
     type: str = attr.field()
+    authorships: list['Authorship'] = attr.field(factory=list)
 
 @attr.define()
 class Authorship(object):

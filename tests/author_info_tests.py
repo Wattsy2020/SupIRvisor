@@ -9,22 +9,16 @@ from analyse_conf.author_info import SemanticScholarQuerier, get_author_data, is
 
 def test_get_paper() -> None:
     """Test that a subset of papers from SIGIR can be found using SemanticScholarQuerier.get_paper"""
-    # Get data, construct title to first author map to include authors in the query
-    papers, authorships = sigir_extract.extract_data()
-    title_to_author = {}
-    for authorship in authorships:
-        if authorship.title in title_to_author: continue
-        title_to_author[authorship.title] = authorship.author_name
-
+    papers = sigir_extract.extract_data()
     with SemanticScholarQuerier() as query_engine:
         for paper in papers:
-            first_author_name = title_to_author[paper.title]
-            paper_json = query_engine.get_paper(paper.title, first_author_name)
+            first_author_name = paper.authorships[0].author_name
+            paper_json = query_engine.get_paper(paper)
 
             assert paper_json is not None, f"No paper found for {paper.title=}"
             assert "authors" in paper_json, f"Authors field isn't returned for {paper.title=}"
             assert len(paper_json["authors"]) >= 1, f"There are no authors for a paper for {paper.title=}"
-            assert is_same_paper(paper_json, paper.title, first_author_name), \
+            assert is_same_paper(paper_json, paper), \
                 f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
 
 

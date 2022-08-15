@@ -5,7 +5,7 @@ import pickle
 import requests
 from typing import Optional, Any
 
-from analyse_conf.data import Authorship, Author
+from analyse_conf.data import Paper, Authorship, Author
 
 
 def equal_titles(title1: str, title2: str) -> bool:
@@ -21,14 +21,14 @@ def has_author(paper_json: dict[str, Any], author_name: str) -> bool:
     return False
 
 
-def is_same_paper(paper_json: dict[str, Any], title: str, author: str) -> bool:
+def is_same_paper(paper_json: dict[str, Any], paper: Paper) -> bool:
     """
     Check if a paper returned by search API matches the query
     A paper matches if it has the same title, or is written by the same author (the name likely changed)
     """
-    if equal_titles(paper_json["title"], title):
+    if equal_titles(paper_json["title"], paper.title):
         return True
-    return has_author(paper_json, author)
+    return has_author(paper_json, paper.authorships[0].author_name)
 
 
 class SemanticScholarQuerier:
@@ -73,15 +73,16 @@ class SemanticScholarQuerier:
         query_url = f"paper/search?query={query}&fields=authors,title"
         return self.__get_json(query_url)
 
-    def get_paper(self, title: str, author: str) -> Optional[dict[str, Any]]:
+    def get_paper(self, paper: Paper) -> Optional[dict[str, Any]]:
         """Given a title, and one author: search for a paper and return its json object"""
-        paper_json = self.__search_paper(title)
+        paper_json = self.__search_paper(paper.title)
 
         # If the search has no results, the paper might have been renamed, search again with the author appended to the query
         if paper_json["total"] == 0:
-            paper_json = self.__search_paper(f"{title} {author}")
+            paper_json = self.__search_paper(f"{paper.title} {paper.authorships[0].author_name}")
 
         # If the search still no results: remove words from the end of the title (sometimes missing spaces confuses SemanticScholar)
+        title = paper.title
         while paper_json["total"] == 0:
             title_words = title.split(" ")
             if len(title_words) < 3: # too few search terms will give a poor result, so treat the paper as unfindable
@@ -92,7 +93,7 @@ class SemanticScholarQuerier:
         # If the top paper doesn't have a matching author, look at the next results (note: it may have been renamed, but by the same author)
         paper_idx = 0
         total_papers = len(paper_json["data"])
-        while not is_same_paper(paper_json["data"][paper_idx], title, author):
+        while not is_same_paper(paper_json["data"][paper_idx], paper):
             paper_idx += 1
             if paper_idx == total_papers: # no matches found in all the results
                 return None
@@ -104,24 +105,20 @@ class SemanticScholarQuerier:
         return self.__get_json(f"author/{id}?fields=affiliations,paperCount,citationCount,hIndex")
 
 
-def get_author_data(authorships: list[Authorship]) -> list[Author]:
+def get_author_data(papers: list[Paper]) -> list[Author]:
     """Create authors and extract their data from SemanticScholar"""
     authors: list[Author] = []
     seen_author_ids: set[str] = set()
 
+    # Loop through all papers, searching for them on semantic scholar, then searching for their authors
     with SemanticScholarQuerier() as query_engine:
-        last_paper_title = ""
-        for authorship in authorships:
-            # Retrieve paper, if it's a new one
-            if authorship.title == last_paper_title:
-                continue
-            last_paper_title = authorship.title
-            paper = query_engine.get_paper(authorship.title, authorship.author_name)
-            if paper is None:
+        for paper in papers:
+            paper_json = query_engine.get_paper(paper)
+            if paper_json is None:
                 continue
 
             # Retrieve and add all new author details
-            for author_id_json in paper["authors"]:
+            for author_id_json in paper_json["authors"]:
                 author_id = author_id_json["authorId"]
                 if author_id in seen_author_ids:
                     continue

@@ -44,16 +44,16 @@ def analyse_conf(conf: str) -> None:
     output_dir = make_output_dir(conf)
 
     # Webscrape conference data and write to file
-    papers, authorships = conference_to_webscraper[conf].extract_data()
+    papers = conference_to_webscraper[conf].extract_data()
     print("Papers:", papers[:10])
-    print("Authorships:", authorships[:10])
     write_class_list(papers, f"{output_dir}/papers.csv")
-    write_class_list(authorships, f"{output_dir}/authorships.csv")
 
-    authors = author_info.get_author_data(authorships)
+    authors = author_info.get_author_data(papers)
     print("Authors:", authors[:10])
     write_class_list(authors, f"{output_dir}/authors.csv")
 
+    #print("Authorships:", authorships[:10])
+    #write_class_list(authorships, f"{output_dir}/authorships.csv")
 
 if __name__ == "__main__":
     analyse_conf("SIGIR2022")

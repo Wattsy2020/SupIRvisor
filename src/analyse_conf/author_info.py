@@ -1,6 +1,7 @@
 """Provides functions that extract further data of each author from google scholar"""
 import os
 import re
+import time
 import pickle
 import requests
 from typing import Optional, Any
@@ -63,6 +64,9 @@ class SemanticScholarQuerier:
             return self.__cache[resource_url]
         
         response = requests.get(f"{self.__api_path}/{resource_url}")
+        if response.status_code == 429: # too many requests, retry later
+            time.sleep(60)
+            return self.__get_json(resource_url)
         response.raise_for_status()
         json = response.json()
         self.__cache[resource_url] = json

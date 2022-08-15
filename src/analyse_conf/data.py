@@ -1,6 +1,6 @@
 """Defines the Dataclasses used to represent Papers, Authors, and Authorship"""
 import attr
-from typing import Optional
+from typing import Optional, Any
 
 
 @attr.define
@@ -24,7 +24,19 @@ class Author(object):
     author_id: str = attr.field(hash=True, eq=True, order=True) # use the SemanticScholar authorId to uniquely identify authors
 
     # These attributes will be populated after initialisation
-    institution: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False) # not always available in the API
     citations: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
     paper_count: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
     h_index: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
+    institution: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False) # not always available in the API
+
+    @staticmethod
+    def from_API_json(author_json: dict[str, Any]) -> 'Author':
+        """Create author class from JSON returned by the SemanticScholar API"""
+        return Author(
+            author_name=author_json["name"], 
+            author_id=author_json["authorId"],
+            citations=author_json["citationCount"],
+            paper_count=author_json["paperCount"],
+            h_index=author_json["hIndex"],
+            institution=author_json["affiliations"][0] if author_json["affiliations"] else None,
+        )

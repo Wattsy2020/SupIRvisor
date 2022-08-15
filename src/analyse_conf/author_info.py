@@ -37,8 +37,8 @@ def is_same_paper(paper_json: dict[str, Any], paper: Paper) -> bool:
 
 class SemanticScholarQuerier:
     """
-    Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions
-    Should ALWAYS be used with the WITH keyword (to load and write the cache)
+    Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions.
+    Should ALWAYS be used with the WITH keyword (to load and write the cache).
     """
     def __init__(self, api_path="https://api.semanticscholar.org/graph/v1", cache_path=".api_cache"):
         self.__api_path = api_path
@@ -59,8 +59,8 @@ class SemanticScholarQuerier:
 
     def __get_json(self, resource_url: str) -> dict[str, Any]:
         """
-        Return the json for a get request on the given resource url for the SemanticScholar graph API
-        Cache new requests, and return the cached result for any previously seen API requests
+        Return the json for a get request on the given resource url for the SemanticScholar graph API.
+        Cache new requests, and return the cached result for any previously seen API requests.
         """
         if resource_url in self.__cache:
             return self.__cache[resource_url]
@@ -109,7 +109,7 @@ class SemanticScholarQuerier:
 
     def get_author(self, id: str) -> dict[str, Any]:
         """Return the author json for the given id"""
-        return self.__get_json(f"author/{id}?fields=affiliations,paperCount,citationCount,hIndex")
+        return self.__get_json(f"author/{id}?fields=name,affiliations,paperCount,citationCount,hIndex")
 
 
 def get_author_data(papers: list[Paper]) -> list[Author]:
@@ -126,19 +126,13 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
 
             # Retrieve and add all new author details
             for author_id_json in paper_json["authors"]:
-                author_id = author_id_json["authorId"]
-                if author_id in seen_author_ids:
+                if author_id_json["authorId"] in seen_author_ids:
                     continue
-                seen_author_ids.add(author_id)
+                seen_author_ids.add(author_id_json["authorId"])
 
-                # query API and fill in the author object
+                # query API and create author object
                 author_json = query_engine.get_author(author_id_json["authorId"])
-                author = Author(author_id_json["name"], author_id)
-                author.citations = author_json["citationCount"]
-                author.paper_count = author_json["paperCount"]
-                author.h_index = author_json["hIndex"]
-                if author_json["affiliations"]:
-                    author.institution = author_json["affiliations"][0]
+                author = Author.from_API_json(author_json)
                 authors.append(author)
                 print(author)
 

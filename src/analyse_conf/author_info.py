@@ -13,10 +13,11 @@ def equal_titles(title1: str, title2: str) -> bool:
     return title1.lower().split(" ")[:3] == title2.lower().split(" ")[:3]
 
 
-def has_author(paper_json: dict[str, Any], author_name: str) -> bool:
-    """Check if `author_name` is an author of the paper"""
+def shares_author(paper_json: dict[str, Any], paper: Paper) -> bool:
+    """Check if the paper_json shares any authors with a paper"""
+    target_authors = {authorship.author_name for authorship in paper.authorships}
     for author in paper_json["authors"]:
-        if author["name"].lower() == author_name:
+        if author["name"].lower() in target_authors:
             return True
     return False
 
@@ -28,7 +29,7 @@ def is_same_paper(paper_json: dict[str, Any], paper: Paper) -> bool:
     """
     if equal_titles(paper_json["title"], paper.title):
         return True
-    return has_author(paper_json, paper.authorships[0].author_name)
+    return shares_author(paper_json, paper)
 
 
 class SemanticScholarQuerier:

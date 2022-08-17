@@ -10,11 +10,11 @@ class Paper(object):
     type: str = attr.field()
     authorships: list['Authorship'] = attr.field(factory=list)
 
-@attr.define()
+@attr.define(hash=True)
 class Authorship(object):
     """Intermediate class to represent the many-to-many relationship between papers and authors"""
-    title: str = attr.field()
-    author_name: str = attr.field()
+    title: str = attr.field(hash=True)
+    author_name: str = attr.field(hash=True)
     author_id: Optional[str] = attr.field(default=None) # the SemanticScholar authorId, to be populated later
 
 @attr.define(hash=True)
@@ -38,5 +38,5 @@ class Author(object):
             citations=author_json["citationCount"],
             paper_count=author_json["paperCount"],
             h_index=author_json["hIndex"],
-            institution=author_json["affiliations"][0] if author_json["affiliations"] else None,
+            institution=author_json["affiliations"][0] if author_json["affiliations"] else None
         )

@@ -111,6 +111,23 @@ class SemanticScholarQuerier:
         """Return the author json for the given id"""
         return self.__get_json(f"author/{id}?fields=name,affiliations,paperCount,citationCount,hIndex")
 
+    def search_author(self, author_name: str, paper_json: dict[str, Any]) -> str:
+        """Match an author name to the correct authorId, by finding the authorId that wrote papers with the given co_authors"""
+        co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
+        retrieved_authors = self.__get_json(f"author/search?query={author_name}&fields=papers.authors&limit=10")
+        author_score: dict[str, int] = {} # stores number of matching co-authors for each authorId
+
+        for author in retrieved_authors["data"]:
+            potential_match_id = author["authorId"]
+            # count the number of matching co_authors
+            for paper in author["papers"]:    
+                for co_author in paper["authors"]:
+                    if co_author["authorId"] in co_author_ids:
+                        author_score[potential_match_id] = author_score.get(potential_match_id, 0) + 1
+        
+        print(author_score)
+        return max(author_score, key=lambda x: author_score[x])
+
 
 def get_author_data(papers: list[Paper]) -> list[Author]:
     """Create authors and extract their data from SemanticScholar"""
@@ -130,21 +147,25 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                     continue
                 seen_author_ids.add(author_id_json["authorId"])
 
+                # search for the Author if no id is given
+                if author_id_json["authorId"] is None: 
+                    author_id = query_engine.search_author(author_id_json["name"], paper_json)
+                    print(f"Retrieved: {author_id} for author: {author_id_json['name']} and paper: {paper}, author json: {paper_json}")
+                else:
+                    author_id = author_id_json["authorId"]
+
                 # query API and create author object
-                author_json = query_engine.get_author(author_id_json["authorId"])
+                author_json = query_engine.get_author(author_id)
                 author = Author.from_API_json(author_json)
                 authors.append(author)
                 print(author)
 
                 # Add author_id to the paper authorship info, to distinguish between different authors with similar names
-                # If number of authors is consistent: Add the author with the lowest Levenshtein distance, otherwise require less than 5 levenshtein distance
-                # (note some authors leave out middle names, so exact string matching is not possible)
-                consistent_authors = len(paper_json["authors"]) == len(paper.authorships)
-                min_dist = math.inf
-                for authorship in paper.authorships:
-                    dist = Levenshtein.distance(author_id_json["name"], authorship.author_name)
-                    if dist < min_dist:
-                        min_dist = dist
-                        if consistent_authors or dist < 5:
-                            authorship.author_id = author_id_json["authorId"]
+                # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
+                    # otherwise require less than 5 levenshtein distance
+                    # (note some authors leave out middle names, so exact string matching is not possible)
+                distances = {authorship: Levenshtein.distance(author_id_json["name"].lower(), authorship.author_name) for authorship in paper.authorships}
+                min_dist_authorship = min(distances, key=lambda x: distances[x])
+                if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
+                    min_dist_authorship.author_id = author_id_json["authorId"]
     return authors

@@ -51,11 +51,32 @@ def test_get_author() -> None:
         assert isinstance(author_json["affiliations"], list)
 
 
+def test_search_author() -> None:
+    """Test that searching for authors correctly matches based on co_author info"""
+    test_author_id = '2067085425'
+    test_author_name = 'Nicholas Lim'
+    test_paper_json = {
+        'paperId': '684877258525dced03ebb049c7bf3c3c69999f9f', 
+        'title': 'Hierarchical Multi-Task Graph Recurrent Network for Next POI Recommendation', 
+        'authors': [
+                {'authorId': None, 'name': 'Nicholas Lim'}, {'authorId': '2019961', 'name': 'Bryan Hooi'}, 
+                {'authorId': '1794527', 'name': 'See-Kiong Ng'}, {'authorId': '1995261298', 'name': 'Yong Liang Goh'}, 
+                {'authorId': '49361860', 'name': 'Renrong Weng'}, {'authorId': '2052819973', 'name': 'Rui Tan'}
+            ]
+        }
+    with SemanticScholarQuerier() as query_engine:
+        calc_author_id = query_engine.search_author(test_author_name, test_paper_json)
+    assert test_author_id == calc_author_id, "Wrong author ids retrieved"
+    # TODO: Check that all authors we've extracted (from get_author_data) are retrieved by this method
+
+
 def test_get_author_data() -> None:
     """Check that every author passed into author_info.get_author_data has complete data extracted"""
     # Check that id, citations, papercount, and h index are present in every author
 
     # Check that every author in the authorships list, has an author object
+
+    # Check that for every paper, the ids in authorships are unique (and that the authors with that id in API have a similar name)
 
 
 def test_query_cache() -> None:

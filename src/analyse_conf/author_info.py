@@ -74,9 +74,14 @@ class SemanticScholarQuerier:
         self.__cache[resource_url] = json
         return json
 
+    @staticmethod
+    def __clean_query(query: str) -> str:
+        """Remove punctuation and spaces from a query, to make it api friendly"""
+        return re.sub(r"[^\w]", "+", query)
+
     def __search_paper(self, query: str) -> dict[str, Any]:
         """Convert paper search query to a url, and search for it"""
-        query = re.sub(r"[^\w]", "+", query) # replace spaces and all punctuation with + to fit the search API
+        query = self.__clean_query(query)
         query_url = f"paper/search?query={query}&fields=authors,title"
         return self.__get_json(query_url)
 
@@ -114,7 +119,8 @@ class SemanticScholarQuerier:
     def search_author(self, author_name: str, paper_json: dict[str, Any]) -> str:
         """Match an author name to the correct authorId, by finding the authorId that wrote papers with the given co_authors"""
         co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
-        retrieved_authors = self.__get_json(f"author/search?query={author_name}&fields=papers.authors&limit=10")
+        author_name = self.__clean_query(author_name)
+        retrieved_authors = self.__get_json(f"author/search?query={author_name}&fields=papers.authors&limit=20")
         author_score: dict[str, int] = {} # stores number of matching co-authors for each authorId
 
         for author in retrieved_authors["data"]:
@@ -125,7 +131,6 @@ class SemanticScholarQuerier:
                     if co_author["authorId"] in co_author_ids:
                         author_score[potential_match_id] = author_score.get(potential_match_id, 0) + 1
         
-        print(author_score)
         return max(author_score, key=lambda x: author_score[x])
 
 
@@ -150,7 +155,6 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 # search for the Author if no id is given
                 if author_id_json["authorId"] is None: 
                     author_id = query_engine.search_author(author_id_json["name"], paper_json)
-                    print(f"Retrieved: {author_id} for author: {author_id_json['name']} and paper: {paper}, author json: {paper_json}")
                 else:
                     author_id = author_id_json["authorId"]
 

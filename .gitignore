@@ -1,5 +1,4 @@
 *.json
-*.ini
 *.pyc
 *.log
 .mypy_cache/*

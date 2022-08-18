@@ -2,7 +2,6 @@
 import os
 import re
 import time
-import math
 import pickle
 import requests
 import Levenshtein
@@ -33,6 +32,34 @@ def is_same_paper(paper_json: dict[str, Any], paper: Paper) -> bool:
     if equal_titles(paper_json["title"], paper.title):
         return True
     return shares_author(paper_json, paper)
+
+
+def is_initialed(name: str) -> bool:
+    """Determine whether a name is initialised, e.g. as L. Watts or L Watts"""
+    return bool(re.match(r"^.[\.]? ", name)) # match strings that start with single char, then an optional dot, followed by a space
+
+
+def initialise_name(name: str) -> tuple[str, list[str]]:
+    """Convert a full written name into an intialised one, e.g. Liam Watts -> L. Watts"""
+    name_sections = name.split(" ")
+    initials = [f"{name_sec[0]}." for name_sec in name_sections[:-1]]
+    return " ".join(initials + [name_sections[-1]]), initials
+
+
+def name_distance(name1: str, name2: str) -> int:
+    """
+    Calculate the levenshtein distance between two names
+    Also account for academic naming fashion of using initials, e.g. writing L. Watts for Liam Watts
+    """
+    name1 = name1.lower()
+    name2 = name2.lower()
+    if is_initialed(name1) or is_initialed(name2):
+        new_name1, initials1 = initialise_name(name1)
+        new_name2, initials2 = initialise_name(name2)
+        if initials1 == initials2: # only if the initials match up can we compare using the initials
+            name1 = new_name1
+            name2 = new_name2
+    return Levenshtein.distance(name1, name2)
 
 
 class SemanticScholarQuerier:
@@ -173,7 +200,7 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
                     # otherwise require less than 5 levenshtein distance
                     # (note some authors leave out middle names, so exact string matching is not possible)
-                distances = {authorship: Levenshtein.distance(author_id_json["name"].lower(), authorship.author_name) for authorship in paper.authorships}
+                distances = {authorship: name_distance(author_id_json["name"], authorship.author_name) for authorship in paper.authorships}
                 min_dist_authorship = min(distances, key=lambda x: distances[x])
                 if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
                     min_dist_authorship.author_id = author_id_json["authorId"]

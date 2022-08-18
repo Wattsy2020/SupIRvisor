@@ -7,7 +7,7 @@ from collections import Counter
 
 from analyse_conf.data import Paper
 from analyse_conf import sigir_extract
-from analyse_conf.author_info import SemanticScholarQuerier, get_author_data, is_same_paper
+from analyse_conf.author_info import SemanticScholarQuerier, get_author_data, is_same_paper, initialise_name, name_distance
 
 
 @pytest.fixture
@@ -15,6 +15,24 @@ def papers() -> list[Paper]:
     """Extract papers for testing"""
     return sigir_extract.extract_data()
 
+
+def test_initialise_name() -> None:
+    assert initialise_name("liam watts") == ("l. watts", ["l."])
+    assert initialise_name("francis william watts") == ("f. w. watts", ["f.", "w."])
+    assert initialise_name("saul") == ("saul", [])
+    assert initialise_name("l. watts") == ("l. watts", ["l."])
+
+
+def test_name_distance() -> None:
+    assert name_distance("liam watts", "liam watts") == 0
+    assert name_distance("liam watts", "liAm WATts") == 0, "name distance should not be case sensitive"
+    assert name_distance("liam watts", "lifm wftts") == 2
+    assert name_distance("liam watts", "l. watts") == 0
+    assert name_distance("liam watts", "L. watts") == 0
+    assert name_distance("Liam watts", "l. watts") == 0
+    assert name_distance("liam watts", "l watts") == 0
+    assert name_distance("liam watts", "d. watts") == 4, "incorrect initialisms don't have a high distance"
+    
 
 def test_get_paper(papers: list[Paper]) -> None:
     """Test that a subset of papers from SIGIR can be found using SemanticScholarQuerier.get_paper"""

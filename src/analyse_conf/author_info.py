@@ -181,6 +181,7 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
     """
     authors: list[Author] = []
     seen_author_ids: set[str] = set()
+    corrected_ids: dict[str, str] = {} # Create a map for correcting author ids (sometimes author ids are updated by the API)
 
     # Loop through all papers, searching for them on semantic scholar, then searching for their authors
     with SemanticScholarQuerier() as query_engine:
@@ -195,6 +196,12 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                     seen_author_ids.add(author_id_json["authorId"])
                     author = extract_author(author_id_json, paper_json, query_engine)
                     authors.append(author)
+                    if author_id_json["authorId"] != author.author_id: # store corrected ids
+                        corrected_ids[author_id_json["authorId"]] = author.author_id
+
+                # Correct id if it has been updated
+                if author_id_json["authorId"] in corrected_ids:
+                    author_id_json["authorId"] = corrected_ids[author_id_json["authorId"]]
 
                 # Add author_id to the paper authorship info, to distinguish between different authors with similar names
                 # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 

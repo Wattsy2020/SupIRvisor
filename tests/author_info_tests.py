@@ -3,6 +3,7 @@ import os
 import pickle
 import pytest
 import warnings
+from collections import Counter
 
 from analyse_conf.data import Paper
 from analyse_conf import sigir_extract
@@ -87,19 +88,28 @@ def test_get_author_data(papers: list[Paper]) -> None:
         assert isinstance(author.h_index, int)
         if author.institution is not None:
             assert isinstance(author.institution, str)
+    assert len({a.author_id for a in authors}) == len(authors), "There are duplicate authors in the extracted list"
 
-    # Check, for every paper, that the ids in authorships are unique (and that the authors with that id in API have a similar name)
+    # Check, for every paper, that the ids in authorships are unique (and that the authors with that id in API have a similar name
+    num_papers_with_missing_authors = 0
     with SemanticScholarQuerier() as query_engine:
         for paper in papers:
-            author_ids = {authorship.author_id for authorship in paper.authorships}
+            author_id_count = Counter([authorship.author_id for authorship in paper.authorships])
 
             # If paper has no author_ids, assert that it's not available on Semantic Scholar
-            if author_ids == set([None]):
+            if author_id_count[None] == len(paper.authorships):
                 assert query_engine.get_paper(paper) is None, "Paper is available on Semantic Scholar, but author information wasn't extracted"
-
-            assert len(author_ids) == len(paper.authorships), f"Paper has duplicate author_ids, {paper.authorships=}"
-
+                continue
+            elif None in author_id_count: # sometimes authors are missing on Semantic Scholar
+                num_papers_with_missing_authors += 1
+            
+            # Check paper has no duplicate author ids
+            for id, count in author_id_count.items():
+                if id is not None:
+                    assert count == 1, f"author_id: {id} occurs {id} times, {paper.authorships=}"
+                
             # TODO: Check the authors have a similar name
+    warnings.warn(f"For {num_papers_with_missing_authors} papers, not all authors are found by the SemanticScholar API")
 
 
 def test_query_cache() -> None:

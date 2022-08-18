@@ -1,6 +1,7 @@
 """Combines the entire source code to analyse a conference based on authorship information"""
 import os
 import attr
+import pprint
 import pandas as pd
 from typing import Sequence
 
@@ -45,15 +46,18 @@ def analyse_conf(conf: str) -> None:
 
     # Webscrape conference data
     papers = conference_to_webscraper[conf].extract_data()
-    print("Papers:", papers[:10])
+    print("Papers:")
+    pprint.pprint(papers[:10])
 
     # Get author data from SemanticScholar
     authors = author_info.get_author_data(papers)
-    print("Authors:", authors[:10])
+    print("\n\nAuthors:")
+    pprint.pprint(authors[:10])
 
     # Extract authorships after the author_id information has been added to papers list
     authorships = [ats for paper in papers for ats in paper.authorships]
-    print("Authorships:", authorships[:10])
+    print("\n\nAuthorships:")
+    pprint.pprint(authorships[:10])
 
     # Write data to file
     write_class_list(authors, f"{output_dir}/authors.csv")

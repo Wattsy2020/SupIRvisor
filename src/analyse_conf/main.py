@@ -52,8 +52,10 @@ def analyse_conf(conf: str) -> None:
     print("Authors:", authors[:10])
     write_class_list(authors, f"{output_dir}/authors.csv")
 
-    #print("Authorships:", authorships[:10])
-    #write_class_list(authorships, f"{output_dir}/authorships.csv")
+    # Extract authorships from the papers, and write to file
+    authorships = [ats for paper in papers for ats in paper.authorships]
+    print("Authorships:", authorships[:10])
+    write_class_list(authorships, f"{output_dir}/authorships.csv")
 
 if __name__ == "__main__":
     analyse_conf("SIGIR2022")

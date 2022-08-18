@@ -135,7 +135,10 @@ class SemanticScholarQuerier:
 
 
 def get_author_data(papers: list[Paper]) -> list[Author]:
-    """Create authors and extract their data from SemanticScholar"""
+    """
+    Create authors and extract their data from SemanticScholar
+    Also mutates the paper list, adding author_ids to the authorships of each paper
+    """
     authors: list[Author] = []
     seen_author_ids: set[str] = set()
 
@@ -148,21 +151,19 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
 
             # Retrieve and add all new author details
             for author_id_json in paper_json["authors"]:
-                if author_id_json["authorId"] in seen_author_ids:
-                    continue
-                seen_author_ids.add(author_id_json["authorId"])
+                if author_id_json["authorId"] not in seen_author_ids:
+                    seen_author_ids.add(author_id_json["authorId"])
 
-                # search for the Author if no id is given
-                if author_id_json["authorId"] is None: 
-                    author_id = query_engine.search_author(author_id_json["name"], paper_json)
-                else:
-                    author_id = author_id_json["authorId"]
+                    # search for the Author if no id is given
+                    if author_id_json["authorId"] is None: 
+                        author_id = query_engine.search_author(author_id_json["name"], paper_json)
+                    else:
+                        author_id = author_id_json["authorId"]
 
-                # query API and create author object
-                author_json = query_engine.get_author(author_id)
-                author = Author.from_API_json(author_json)
-                authors.append(author)
-                print(author)
+                    # query API and create author object
+                    author_json = query_engine.get_author(author_id)
+                    author = Author.from_API_json(author_json)
+                    authors.append(author)
 
                 # Add author_id to the paper authorship info, to distinguish between different authors with similar names
                 # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 

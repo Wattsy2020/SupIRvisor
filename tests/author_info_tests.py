@@ -4,13 +4,19 @@ import pickle
 import pytest
 import warnings
 
+from analyse_conf.data import Paper
 from analyse_conf import sigir_extract
 from analyse_conf.author_info import SemanticScholarQuerier, get_author_data, is_same_paper
 
 
-def test_get_paper() -> None:
+@pytest.fixture
+def papers() -> list[Paper]:
+    """Extract papers for testing"""
+    return sigir_extract.extract_data()
+
+
+def test_get_paper(papers: list[Paper]) -> None:
     """Test that a subset of papers from SIGIR can be found using SemanticScholarQuerier.get_paper"""
-    papers = sigir_extract.extract_data()
     with SemanticScholarQuerier() as query_engine:
         for paper in papers:
             first_author_name = paper.authorships[0].author_name
@@ -25,9 +31,8 @@ def test_get_paper() -> None:
                 f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
 
 
-def test_get_paper_author_consistency() -> None:
+def test_get_paper_author_consistency(papers: list[Paper]) -> None:
     """Calculate the number of papers for which not all authors are represented by the SemanticScholar API"""
-    papers = sigir_extract.extract_data()
     num_inconsistent_authors = 0
     with SemanticScholarQuerier() as query_engine:
         for paper in papers:
@@ -70,13 +75,31 @@ def test_search_author() -> None:
     # TODO: Check that all authors we've extracted (from get_author_data) are retrieved by this method
 
 
-def test_get_author_data() -> None:
+def test_get_author_data(papers: list[Paper]) -> None:
     """Check that every author passed into author_info.get_author_data has complete data extracted"""
+    authors = get_author_data(papers)
+    
     # Check that id, citations, papercount, and h index are present in every author
+    for author in authors:
+        assert isinstance(author.author_id, str)
+        assert isinstance(author.citations, int)
+        assert isinstance(author.paper_count, int)
+        assert isinstance(author.h_index, int)
+        if author.institution is not None:
+            assert isinstance(author.institution, str)
 
-    # Check that every author in the authorships list, has an author object
+    # Check, for every paper, that the ids in authorships are unique (and that the authors with that id in API have a similar name)
+    with SemanticScholarQuerier() as query_engine:
+        for paper in papers:
+            author_ids = {authorship.author_id for authorship in paper.authorships}
 
-    # Check that for every paper, the ids in authorships are unique (and that the authors with that id in API have a similar name)
+            # If paper has no author_ids, assert that it's not available on Semantic Scholar
+            if author_ids == set([None]):
+                assert query_engine.get_paper(paper) is None, "Paper is available on Semantic Scholar, but author information wasn't extracted"
+
+            assert len(author_ids) == len(paper.authorships), f"Paper has duplicate author_ids, {paper.authorships=}"
+
+            # TODO: Check the authors have a similar name
 
 
 def test_query_cache() -> None:

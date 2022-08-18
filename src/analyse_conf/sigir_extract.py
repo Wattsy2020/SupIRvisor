@@ -26,7 +26,7 @@ def split_authors(author_str: str) -> list[str]:
 
     # there are a few lone authors, avoid throwing an error for them
     # also some final authors are separated by a ", " not an " and ", in which case they're already handled
-    if len(split_authors) > 1 and len(authors) > 1:
+    if len(authors) > 1:
         split_authors = split_authors + [authors[1]]
     return split_authors
 

@@ -8,6 +8,7 @@ def test_split_authors() -> None:
     assert sigir_extract.split_authors("test1 test2, author1 author2 and author3 author4") == ["test1 test2", "author1 author2", "author3 author4"], "Fails to recognise `and`"
     assert sigir_extract.split_authors("Test1 test2") == ["Test1 test2"], "Fails to recognise single authors"
     assert sigir_extract.split_authors("af1 al1, af2 al2") == ["af1 al1", "af2 al2"], "Fails to recognise authors separated only by commas"
+    assert sigir_extract.split_authors("Author1 author1l and Author2 author2l") == ["Author1 author1l", "Author2 author2l"], "Fails to extract two authors separated by and"
 
 
 def test_get_paper_tags() -> None:

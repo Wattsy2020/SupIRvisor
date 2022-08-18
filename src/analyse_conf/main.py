@@ -43,18 +43,21 @@ def analyse_conf(conf: str) -> None:
     """
     output_dir = make_output_dir(conf)
 
-    # Webscrape conference data and write to file
+    # Webscrape conference data
     papers = conference_to_webscraper[conf].extract_data()
     print("Papers:", papers[:10])
-    write_class_list(papers, f"{output_dir}/papers.csv")
 
+    # Get author data from SemanticScholar
     authors = author_info.get_author_data(papers)
     print("Authors:", authors[:10])
-    write_class_list(authors, f"{output_dir}/authors.csv")
 
-    # Extract authorships from the papers, and write to file
+    # Extract authorships after the author_id information has been added to papers list
     authorships = [ats for paper in papers for ats in paper.authorships]
     print("Authorships:", authorships[:10])
+
+    # Write data to file
+    write_class_list(authors, f"{output_dir}/authors.csv")
+    write_class_list(papers, f"{output_dir}/papers.csv")
     write_class_list(authorships, f"{output_dir}/authorships.csv")
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 """Combines the entire source code to analyse a conference based on authorship information"""
-import os
+from pathlib import Path
 import attr
 import pprint
 import pandas as pd
@@ -13,23 +13,16 @@ conference_to_webscraper = {
 }
 
 
-def make_output_dir(conf: str) -> str:
+def make_output_dir(conf: str) -> Path:
     """Create the output_dir for a conference, and return the path to it"""
-    output_dir = f"outputs/{conf}"
-    if not os.path.exists("outputs"):
-        os.mkdir("outputs")
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
+    output_dir = Path("outputs") / conf
+    output_dir.mkdir(exist_ok=True)
     return output_dir
 
 
-def write_class_list(objects: Sequence[object], file_name: str) -> None:
+def write_class_list(objects: Sequence[object], file_name: Path) -> None:
     """Write a list of attrs objects to a csv file, overwriting old results"""
-    # Delete the file if it exists
-    if os.path.exists(file_name):
-        os.remove(file_name)
-
-    # Write data to file
+    file_name.unlink(missing_ok=True)
     rows = [attr.asdict(obj) for obj in objects]
     df = pd.DataFrame(rows)
     df.to_csv(file_name, index=False)
@@ -60,9 +53,9 @@ def analyse_conf(conf: str) -> None:
     pprint.pprint(authorships[:10])
 
     # Write data to file
-    write_class_list(authors, f"{output_dir}/authors.csv")
-    write_class_list(papers, f"{output_dir}/papers.csv")
-    write_class_list(authorships, f"{output_dir}/authorships.csv")
+    write_class_list(authors, output_dir / "authors.csv")
+    write_class_list(papers, output_dir / "papers.csv")
+    write_class_list(authorships, output_dir / "authorships.csv")
 
 if __name__ == "__main__":
     analyse_conf("SIGIR2022")

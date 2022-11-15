@@ -16,7 +16,7 @@ conference_to_webscraper = {
 def make_output_dir(conf: str) -> Path:
     """Create the output_dir for a conference, and return the path to it"""
     output_dir = Path("outputs") / conf
-    output_dir.mkdir(exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
 

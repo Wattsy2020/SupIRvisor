@@ -9,6 +9,8 @@ from analyse_conf.data import Paper, Author, Authorship
 from analyse_conf import sigir_extract
 from analyse_conf.author_info import SemanticScholarQuerier, get_author_data, is_same_paper, initialise_name, name_distance
 
+from typing import Optional
+
 
 def test_initialise_name() -> None:
     assert initialise_name("liam watts") == ("l. watts", ["l."])
@@ -96,7 +98,7 @@ def test_get_author_data(papers: list[Paper]) -> None:
     # Check, for every paper, that the ids in authorships are unique (and that the authors with that id in API have a similar name
     num_papers_with_missing_authors = 0
     different_name_matches: list[tuple[str, str]] = [] # store borderline name matches and display at the end
-    authors_with_papers: set[str] = set()
+    authors_with_papers: set[Optional[str]] = set()
     with SemanticScholarQuerier() as query_engine:
         for paper in papers:
             author_id_count = Counter([authorship.author_id for authorship in paper.authorships])

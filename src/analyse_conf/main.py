@@ -1,12 +1,16 @@
 """Combines the entire source code to analyse a conference based on authorship information"""
+from __future__ import annotations
+
 from pathlib import Path
 import attr
 import pprint
 import pandas as pd
 from typing import Sequence
+import logging
 
 from analyse_conf import sigir_extract
 from analyse_conf import author_info
+
 
 conference_to_webscraper = {
     "SIGIR2022": sigir_extract
@@ -20,7 +24,7 @@ def make_output_dir(conf: str) -> Path:
     return output_dir
 
 
-def write_class_list(objects: Sequence[object], file_name: Path) -> None:
+def write_class_list(objects: Sequence[attr.AttrsInstance], file_name: Path) -> None:
     """Write a list of attrs objects to a csv file, overwriting old results"""
     file_name.unlink(missing_ok=True)
     rows = [attr.asdict(obj) for obj in objects]
@@ -35,6 +39,7 @@ def analyse_conf(conf: str) -> None:
     TODO: Perform analysis of this data
         TODO: Create visualisations and tables of the results
     """
+    logging.basicConfig(filename='download.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
     output_dir = make_output_dir(conf)
 
     # Webscrape conference data

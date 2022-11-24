@@ -7,6 +7,9 @@ import requests
 import Levenshtein
 from typing import Optional, Any
 
+import logging
+logger = logging.getLogger(__name__)
+
 from analyse_conf.data import Paper, Authorship, Author
 
 
@@ -67,7 +70,7 @@ class SemanticScholarQuerier:
     Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions.
     Should ALWAYS be used with the WITH keyword (to load and write the cache).
     """
-    def __init__(self, api_path="https://api.semanticscholar.org/graph/v1", cache_path=".api_cache"):
+    def __init__(self, api_path: str = "https://api.semanticscholar.org/graph/v1", cache_path: str = ".api_cache") -> None:
         self.__api_path = api_path
         self.__cache_path = cache_path
         self.__cache: dict[str, dict[str, Any]] = {} # maps API urls to Json responses
@@ -92,9 +95,11 @@ class SemanticScholarQuerier:
         if resource_url in self.__cache:
             return self.__cache[resource_url]
         
+        logging.info(f"Request for {resource_url}")
         response = requests.get(f"{self.__api_path}/{resource_url}")
         if response.status_code == 429: # too many requests, retry later
             time.sleep(60)
+            logging.info(f"Recursing for {resource_url=}, {response=}, {response.headers=}")
             return self.__get_json(resource_url)
         response.raise_for_status()
         json = response.json()
@@ -144,12 +149,15 @@ class SemanticScholarQuerier:
         return self.__get_json(f"author/{id}?fields=name,affiliations,paperCount,citationCount,hIndex")
 
     def search_author(self, author_name: str, paper_json: dict[str, Any]) -> str:
-        """Match an author name to the correct authorId, by finding the authorId that wrote papers with the given co_authors"""
+        """Given an author name return the correct authorId, by finding the authorId that wrote papers with the given co_authors"""
         co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
         author_name = self.__clean_query(author_name)
         retrieved_authors = self.__get_json(f"author/search?query={author_name}&fields=papers.authors&limit=20")
-        author_score: dict[str, int] = {} # stores number of matching co-authors for each authorId
+        
 
+
+        # Find the most likely author by counting the number of shared co authors
+        author_score: dict[str, int] = {} # stores number of matching co-authors for each authorId
         for author in retrieved_authors["data"]:
             potential_match_id = author["authorId"]
             # count the number of matching co_authors
@@ -157,7 +165,6 @@ class SemanticScholarQuerier:
                 for co_author in paper["authors"]:
                     if co_author["authorId"] in co_author_ids:
                         author_score[potential_match_id] = author_score.get(potential_match_id, 0) + 1
-        
         return max(author_score, key=lambda x: author_score[x])
 
 
@@ -192,23 +199,28 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
 
             # Retrieve and add all new author details
             for author_id_json in paper_json["authors"]:
-                if author_id_json["authorId"] not in seen_author_ids:
-                    seen_author_ids.add(author_id_json["authorId"])
+                author_id = author_id_json["authorId"]
+                if author_id is None or author_id not in seen_author_ids:
                     author = extract_author(author_id_json, paper_json, query_engine)
                     authors.append(author)
-                    if author_id_json["authorId"] != author.author_id: # store corrected ids
-                        corrected_ids[author_id_json["authorId"]] = author.author_id
+
+                    # Add the previous id (or found id if none), to the list of extracted ids
+                    new_seen = author_id or author.author_id
+                    seen_author_ids.add(new_seen)
+
+                    if author_id != author.author_id: # store corrected ids
+                        corrected_ids[author_id] = author.author_id
 
                 # Correct id if it has been updated
-                if author_id_json["authorId"] in corrected_ids:
-                    author_id_json["authorId"] = corrected_ids[author_id_json["authorId"]]
+                if author_id in corrected_ids:
+                    author_id = corrected_ids[author_id]
 
                 # Add author_id to the paper authorship info, to distinguish between different authors with similar names
                 # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
                     # otherwise require less than 5 levenshtein distance
                     # (note some authors leave out middle names, so exact string matching is not possible)
-                distances = {authorship: name_distance(author_id_json["name"], authorship.author_name) for authorship in paper.authorships}
+                distances = {authorship: name_distance(author_id, authorship.author_name) for authorship in paper.authorships}
                 min_dist_authorship = min(distances, key=lambda x: distances[x])
                 if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
-                    min_dist_authorship.author_id = author_id_json["authorId"]
+                    min_dist_authorship.author_id = author_id
     return authors

@@ -80,6 +80,41 @@ def test_query_cache() -> None:
     os.remove(cache_path)
 
 
+@pytest.fixture
+def papers() -> list[Paper]:
+    """Extract papers for testing"""
+    return sigir_extract.extract_data()
+ 
+
+def test_get_paper(papers: list[Paper]) -> None:
+    """Test that a subset of papers from SIGIR can be found using SemanticScholarQuerier.get_paper"""
+    with SemanticScholarQuerier() as query_engine:
+        for paper in papers:
+            first_author_name = paper.authorships[0].author_name
+            paper_json = query_engine.get_paper(paper)
+
+            if paper_json is None:
+                warnings.warn(f"No paper found for {paper.title=}")
+                continue
+            assert "authors" in paper_json, f"Authors field isn't returned for {paper.title=}"
+            assert len(paper_json["authors"]) >= 1, f"There are no authors for a paper for {paper.title=}"
+            assert is_same_paper(paper_json, paper), \
+                f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
+
+
+def test_get_paper_author_consistency(papers: list[Paper]) -> None:
+    """Calculate the number of papers for which not all authors are represented by the SemanticScholar API"""
+    num_inconsistent_authors = 0
+    with SemanticScholarQuerier() as query_engine:
+        for paper in papers:
+            paper_json = query_engine.get_paper(paper)
+            if paper_json is None:
+                continue
+            if len(paper_json["authors"]) != len(paper.authorships):
+                num_inconsistent_authors += 1
+    warnings.warn(f"For {num_inconsistent_authors} papers, not all authors are found by the SemanticScholar API")
+
+
 def test_get_author_data(papers: list[Paper]) -> None:
     """Check that every author passed into author_info.get_author_data has complete data extracted"""
     authors = get_author_data(papers)
@@ -129,38 +164,3 @@ def test_get_author_data(papers: list[Paper]) -> None:
     assert authors_with_papers == set(author_id_map.keys()), "Some authors have not been assigned to a paper" # type: ignore
     warnings.warn(f"For {num_papers_with_missing_authors} papers, not all authors are found by the SemanticScholar API")
     warnings.warn(f"Check the list of borderline name matches\n{different_name_matches}")
-
-
-@pytest.fixture
-def papers() -> list[Paper]:
-    """Extract papers for testing"""
-    return sigir_extract.extract_data()
- 
-
-def test_get_paper(papers: list[Paper]) -> None:
-    """Test that a subset of papers from SIGIR can be found using SemanticScholarQuerier.get_paper"""
-    with SemanticScholarQuerier() as query_engine:
-        for paper in papers:
-            first_author_name = paper.authorships[0].author_name
-            paper_json = query_engine.get_paper(paper)
-
-            if paper_json is None:
-                warnings.warn(f"No paper found for {paper.title=}")
-                continue
-            assert "authors" in paper_json, f"Authors field isn't returned for {paper.title=}"
-            assert len(paper_json["authors"]) >= 1, f"There are no authors for a paper for {paper.title=}"
-            assert is_same_paper(paper_json, paper), \
-                f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
-
-
-def test_get_paper_author_consistency(papers: list[Paper]) -> None:
-    """Calculate the number of papers for which not all authors are represented by the SemanticScholar API"""
-    num_inconsistent_authors = 0
-    with SemanticScholarQuerier() as query_engine:
-        for paper in papers:
-            paper_json = query_engine.get_paper(paper)
-            if paper_json is None:
-                continue
-            if len(paper_json["authors"]) != len(paper.authorships):
-                num_inconsistent_authors += 1
-    warnings.warn(f"For {num_inconsistent_authors} papers, not all authors are found by the SemanticScholar API")

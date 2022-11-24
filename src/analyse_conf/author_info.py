@@ -148,13 +148,17 @@ class SemanticScholarQuerier:
         """Return the author json for the given id"""
         return self.__get_json(f"author/{id}?fields=name,affiliations,paperCount,citationCount,hIndex")
 
-    def search_author(self, author_name: str, paper_json: dict[str, Any]) -> str:
-        """Given an author name return the correct authorId, by finding the authorId that wrote papers with the given co_authors"""
+    def search_author(self, author_name: str, paper_json: dict[str, Any]) -> Optional[str]:
+        """
+        Given an author name return the correct authorId, by finding the authorId that wrote papers with the given co_authors
+        
+        If there are no search results from the API this returns none
+        """
         co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
         author_name = self.__clean_query(author_name)
         retrieved_authors = self.__get_json(f"author/search?query={author_name}&fields=papers.authors&limit=20")
-        
-
+        if retrieved_authors["total"] == 0: # no data
+            return None
 
         # Find the most likely author by counting the number of shared co authors
         author_score: dict[str, int] = {} # stores number of matching co-authors for each authorId
@@ -168,7 +172,7 @@ class SemanticScholarQuerier:
         return max(author_score, key=lambda x: author_score[x])
 
 
-def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], query_engine: SemanticScholarQuerier) -> Author:
+def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], query_engine: SemanticScholarQuerier) -> Optional[Author]:
     """Search the API for author_id_json, then create and return an Author object"""
     # search for the Author if no id is given
     if author_id_json["authorId"] is None: 
@@ -177,8 +181,10 @@ def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], q
         author_id = author_id_json["authorId"]
 
     # query API and create author object
-    author_json = query_engine.get_author(author_id)
-    return Author.from_API_json(author_json)
+    if author_id:
+        author_json = query_engine.get_author(author_id)
+        return Author.from_API_json(author_json)
+    return None
 
 
 def get_author_data(papers: list[Paper]) -> list[Author]:
@@ -202,6 +208,8 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 author_id = author_id_json["authorId"]
                 if author_id is None or author_id not in seen_author_ids:
                     author = extract_author(author_id_json, paper_json, query_engine)
+                    if not author: # failed to find author
+                        continue
                     authors.append(author)
 
                     # Add the previous id (or found id if none), to the list of extracted ids

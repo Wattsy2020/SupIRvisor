@@ -39,7 +39,7 @@ def analyse_conf(conf: str) -> None:
     TODO: Perform analysis of this data
         TODO: Create visualisations and tables of the results
     """
-    logging.basicConfig(filename='download.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename='download.log', format='%(asctime)s %(message)s', filemode="w", encoding='utf-8', level=logging.DEBUG)
     output_dir = make_output_dir(conf)
 
     # Webscrape conference data
@@ -61,6 +61,7 @@ def analyse_conf(conf: str) -> None:
     write_class_list(authors, output_dir / "authors.csv")
     write_class_list(papers, output_dir / "papers.csv")
     write_class_list(authorships, output_dir / "authorships.csv")
+
 
 if __name__ == "__main__":
     analyse_conf("SIGIR2022")

@@ -98,8 +98,8 @@ class SemanticScholarQuerier:
         logging.info(f"Request for {resource_url}")
         response = requests.get(f"{self.__api_path}/{resource_url}")
         if response.status_code == 429: # too many requests, retry later
-            time.sleep(60)
             logging.info(f"Recursing for {resource_url=}, {response=}, {response.headers=}")
+            time.sleep(60)
             return self.__get_json(resource_url)
         response.raise_for_status()
         json = response.json()
@@ -157,8 +157,6 @@ class SemanticScholarQuerier:
         co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
         author_name = self.__clean_query(author_name)
         retrieved_authors = self.__get_json(f"author/search?query={author_name}&fields=papers.authors&limit=20")
-        if retrieved_authors["total"] == 0: # no data
-            return None
 
         # Find the most likely author by counting the number of shared co authors
         author_score: dict[str, int] = {} # stores number of matching co-authors for each authorId
@@ -169,7 +167,10 @@ class SemanticScholarQuerier:
                 for co_author in paper["authors"]:
                     if co_author["authorId"] in co_author_ids:
                         author_score[potential_match_id] = author_score.get(potential_match_id, 0) + 1
-        return max(author_score, key=lambda x: author_score[x])
+        
+        if len(author_score) > 0:
+            return max(author_score, key=lambda x: author_score[x])
+        return None
 
 
 def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], query_engine: SemanticScholarQuerier) -> Optional[Author]:
@@ -198,7 +199,7 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
 
     # Loop through all papers, searching for them on semantic scholar, then searching for their authors
     with SemanticScholarQuerier() as query_engine:
-        for paper in papers:
+        for i, paper in enumerate(papers):
             paper_json = query_engine.get_paper(paper)
             if paper_json is None:
                 continue
@@ -231,4 +232,6 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 min_dist_authorship = min(distances, key=lambda x: distances[x])
                 if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
                     min_dist_authorship.author_id = author_id
+            
+            logging.info(f"{i}/{len(papers)} papers processed")
     return authors

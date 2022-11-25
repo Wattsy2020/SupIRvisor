@@ -168,9 +168,7 @@ class SemanticScholarQuerier:
                     if co_author["authorId"] in co_author_ids:
                         author_score[potential_match_id] = author_score.get(potential_match_id, 0) + 1
         
-        if len(author_score) > 0:
-            return max(author_score, key=lambda x: author_score[x])
-        return None
+        return max(author_score, key=lambda x: author_score[x]) if author_score else None
 
 
 def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], query_engine: SemanticScholarQuerier) -> Optional[Author]:

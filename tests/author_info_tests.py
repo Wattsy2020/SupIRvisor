@@ -7,9 +7,17 @@ from collections import Counter
 
 from analyse_conf.data import Paper, Author, Authorship
 from analyse_conf import sigir_extract
-from analyse_conf.author_info import SemanticScholarQuerier, get_author_data, is_same_paper, initialise_name, name_distance
+from analyse_conf.author_info import SemanticScholarQuerier, get_author_data, is_same_paper, is_initialed, initialise_name, name_distance
 
-from typing import Optional
+
+def test_is_initialed() -> None:
+    assert is_initialed("L. watts")
+    assert not is_initialed("Liam Watts")
+    assert is_initialed("Terence C. S. Tao") # test initialed middle names are also recognized
+    assert not is_initialed("Terence Chi-Shen Tao")
+    assert is_initialed("Liam W.") # even last names can be initialed
+    assert is_initialed("Liam W")
+    assert not is_initialed(" Liam ") # sanity check
 
 
 def test_initialise_name() -> None:

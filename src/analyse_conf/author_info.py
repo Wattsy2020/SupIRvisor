@@ -38,8 +38,11 @@ def is_same_paper(paper_json: dict[str, Any], paper: Paper) -> bool:
 
 
 def is_initialed(name: str) -> bool:
-    """Determine whether a name is initialised, e.g. as L. Watts or L Watts"""
-    return bool(re.match(r"^.[\.]? ", name)) # match strings that start with single char, then an optional dot, followed by a space
+    """
+    Determine whether a name is initialised, e.g. as L. Watts or L Watts
+    match strings that have a single isolated char (space on either side or start/end of line), with an optional dot
+    """
+    return bool(re.match(r".*(?:^| ).[\.]?(?:$| ).*", name))
 
 
 def initialise_name(name: str) -> tuple[str, list[str]]:

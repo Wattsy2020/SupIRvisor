@@ -119,7 +119,7 @@ def test_get_paper_author_consistency(papers: list[Paper]) -> None:
                 continue
             if len(paper_json["authors"]) != len(paper.authorships):
                 num_inconsistent_authors += 1
-    warnings.warn(f"For {num_inconsistent_authors} papers, not all authors are found by the SemanticScholar API")
+    warnings.warn(f"For {num_inconsistent_authors} papers, a different number of authors are found by the SemanticScholar API")
 
 
 @pytest.fixture
@@ -149,7 +149,7 @@ def test_get_author_paper_consistency(papers: list[Paper], authors: list[Author]
     num_papers_with_missing_authors = 0
     different_name_matches: list[tuple[str, str]] = [] # store borderline name matches and display at the end
     authors_with_papers: set[str] = set()
-    
+
     with SemanticScholarQuerier() as query_engine:
         for paper in papers:
             author_id_count = Counter([authorship.author_id for authorship in paper.authorships])

@@ -216,11 +216,21 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                         continue
 
                 # Add author_id to the paper authorship info, to distinguish between different authors with similar names
+                # Greedily match the current Author against all authorships that haven't already been matched with
+                distances = {
+                    authorship: name_distance(author_id_json["name"], authorship.author_name) 
+                    for authorship in paper.authorships
+                    if authorship.author_id is None
+                }
+                # If all authors have been matched exit the loop
+                # This happens when there are additional authors listed on SemanticScholar, that aren't listed in the conference data
+                if not distances:
+                    break
+                min_dist_authorship = min(distances, key=lambda x: distances[x])
+
                 # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
                     # otherwise require less than 5 levenshtein distance
                     # (note some authors leave out middle names, so exact string matching is not possible)
-                distances = {authorship: name_distance(author_id_json["name"], authorship.author_name) for authorship in paper.authorships}
-                min_dist_authorship = min(distances, key=lambda x: distances[x])
                 if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
                     # Only add new authors if they match with any author of this paper
                     if new_author:

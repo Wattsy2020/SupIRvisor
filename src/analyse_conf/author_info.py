@@ -208,17 +208,19 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
             # Retrieve and add all new author details
             for author_id_json in paper_json["authors"]:
                 author_id = author_id_json["authorId"]
+
+                # Search API for authors we haven't extracted yet
                 if author_id is None or author_id not in seen_author_ids:
                     author = extract_author(author_id_json, paper_json, query_engine)
                     if not author: # failed to find author
                         continue
                     authors.append(author)
+                    seen_author_ids.add(author_id or author.author_id)
 
-                    # Add the previous id (or found id if none), to the list of extracted ids
-                    new_seen = author_id or author.author_id
-                    seen_author_ids.add(new_seen)
-
-                    if author_id != author.author_id: # store corrected ids
+                    # Store the corrected ids, note that since `None` is not unique, we cannot store it 
+                    if author_id is None:
+                        author_id = author.author_id
+                    elif author_id != author.author_id:
                         corrected_ids[author_id] = author.author_id
 
                 # Correct id if it has been updated

@@ -229,7 +229,7 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
                     # otherwise require less than 5 levenshtein distance
                     # (note some authors leave out middle names, so exact string matching is not possible)
-                distances = {authorship: name_distance(author_id, authorship.author_name) for authorship in paper.authorships}
+                distances = {authorship: name_distance(author_id_json["name"], authorship.author_name) for authorship in paper.authorships}
                 min_dist_authorship = min(distances, key=lambda x: distances[x])
                 if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
                     min_dist_authorship.author_id = author_id

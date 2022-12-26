@@ -122,9 +122,14 @@ def test_get_paper_author_consistency(papers: list[Paper]) -> None:
     warnings.warn(f"For {num_inconsistent_authors} papers, not all authors are found by the SemanticScholar API")
 
 
-def test_get_author_data(papers: list[Paper]) -> None:
+@pytest.fixture
+def authors(papers: list[Paper]) -> list[Author]:
+    """Extract authors for testing"""
+    return get_author_data(papers)
+
+
+def test_get_author_data(authors: list[Author]) -> None:
     """Check that every author passed into author_info.get_author_data has complete data extracted"""
-    authors = get_author_data(papers)
     author_id_map: dict[str, Author] = {a.author_id: a for a in authors}
     
     # Check that id, citations, papercount, and h index are present in every author
@@ -137,10 +142,14 @@ def test_get_author_data(papers: list[Paper]) -> None:
             assert isinstance(author.institution, str)
     assert len(author_id_map) == len(authors), "There are duplicate authors in the extracted list"
 
-    # Check, for every paper, that the ids in authorships are unique (and that the authors with that id in API have a similar name
+
+def test_get_author_paper_consistency(papers: list[Paper], authors: list[Author]) -> None:
+    """Check, for every paper, that the ids in authorships are unique (and that the authors with that id in API have a similar name)"""
+    author_id_map: dict[str, Author] = {a.author_id: a for a in authors}
     num_papers_with_missing_authors = 0
     different_name_matches: list[tuple[str, str]] = [] # store borderline name matches and display at the end
     authors_with_papers: set[str] = set()
+    
     with SemanticScholarQuerier() as query_engine:
         for paper in papers:
             author_id_count = Counter([authorship.author_id for authorship in paper.authorships])

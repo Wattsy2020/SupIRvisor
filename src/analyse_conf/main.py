@@ -12,7 +12,7 @@ from analyse_conf import sigir_extract
 from analyse_conf import author_info
 
 
-conference_to_webscraper = {
+CONFERENCE_TO_WEBSCRAPER = {
     "SIGIR2022": sigir_extract
 }
 
@@ -43,7 +43,7 @@ def analyse_conf(conf: str) -> None:
     output_dir = make_output_dir(conf)
 
     # Webscrape conference data
-    papers = conference_to_webscraper[conf].extract_data()
+    papers = CONFERENCE_TO_WEBSCRAPER[conf].extract_data()
     print("Papers:")
     pprint.pprint(papers[:10])
 

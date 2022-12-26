@@ -210,22 +210,10 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 author_id = author_id_json["authorId"]
 
                 # Search API for authors we haven't extracted yet
-                if author_id is None or author_id not in seen_author_ids:
+                if (new_author := author_id is None or author_id not in seen_author_ids):
                     author = extract_author(author_id_json, paper_json, query_engine)
                     if not author: # failed to find author
                         continue
-                    authors.append(author)
-                    seen_author_ids.add(author_id or author.author_id)
-
-                    # Store the corrected ids, note that since `None` is not unique, we cannot store it 
-                    if author_id is None:
-                        author_id = author.author_id
-                    elif author_id != author.author_id:
-                        corrected_ids[author_id] = author.author_id
-
-                # Correct id if it has been updated
-                if author_id in corrected_ids:
-                    author_id = corrected_ids[author_id]
 
                 # Add author_id to the paper authorship info, to distinguish between different authors with similar names
                 # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
@@ -234,6 +222,19 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 distances = {authorship: name_distance(author_id_json["name"], authorship.author_name) for authorship in paper.authorships}
                 min_dist_authorship = min(distances, key=lambda x: distances[x])
                 if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
+                    # Only add new authors if they match with any author of this paper
+                    if new_author:
+                        assert author is not None, f"For a True {new_author=}, {author=} should never be None"
+                        authors.append(author)
+                        seen_author_ids.add(author_id or author.author_id)
+
+                        if author_id != author.author_id:
+                            corrected_ids[author_id] = author.author_id
+
+                    # Correct id if it has been updated
+                    if author_id in corrected_ids:
+                        author_id = corrected_ids[author_id]
+
                     min_dist_authorship.author_id = author_id
             
             logging.info(f"{i}/{len(papers)} papers processed")

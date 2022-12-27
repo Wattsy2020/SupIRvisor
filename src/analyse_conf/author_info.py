@@ -5,7 +5,7 @@ import time
 import pickle
 import requests
 import Levenshtein
-from typing import Optional, Any
+from typing import Optional, Any, Iterable, Iterator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -189,14 +189,23 @@ def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], q
     return None
 
 
+def get_authors_with_papers(authors: Iterable[Author], papers: list[Paper]) -> Iterator[Author]:
+    """Filter the `authors` list to authors who have written a paper in `papers`"""
+    authors_with_papers = {
+        authorship.author_id
+        for paper in papers
+        for authorship in paper.authorships
+        if authorship.author_id is not None
+    }
+    yield from (author for author in authors if author.author_id in authors_with_papers)
+
+
 def get_author_data(papers: list[Paper]) -> list[Author]:
     """
     Create authors and extract their data from SemanticScholar
     Also mutates the paper list, adding author_ids to the authorships of each paper
     """
-    authors: list[Author] = []
-    seen_author_ids: set[str] = set()
-    corrected_ids: dict[str, str] = {} # Create a map for correcting author ids (sometimes author ids are updated by the API)
+    author_id_map: dict[str, Author] = {}
 
     # Loop through all papers, searching for them on semantic scholar, then searching for their authors
     with SemanticScholarQuerier() as query_engine:
@@ -210,15 +219,27 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 author_id = author_id_json["authorId"]
 
                 # Search API for authors we haven't extracted yet
-                if (new_author := author_id is None or author_id not in seen_author_ids):
+                if author_id is None or author_id not in author_id_map:
                     author = extract_author(author_id_json, paper_json, query_engine)
                     if not author: # failed to find author
                         continue
 
+                    # Map author_ids to this extracted author
+                    # (including outdated ones that differ between Paper and Author API)
+                    # Do not map author_id of None, as there are multiple such author_ids
+                    if author_id is None: # update so we can later retrieve the author
+                        author_id = author.author_id
+                    elif author_id != author.author_id:
+                        author_id_map[author_id] = author
+                    author_id_map[author.author_id] = author
+                
+                assert isinstance(author_id, str), "a None author_id should be assigned to a correct one at this point"
+                author = author_id_map[author_id]
+
                 # Add author_id to the paper authorship info, to distinguish between different authors with similar names
                 # Greedily match the current Author against all authorships that haven't already been matched with
                 distances = {
-                    authorship: name_distance(author_id_json["name"], authorship.author_name) 
+                    authorship: name_distance(author.author_name, authorship.author_name) 
                     for authorship in paper.authorships
                     if authorship.author_id is None
                 }
@@ -232,20 +253,9 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                     # otherwise require less than 5 levenshtein distance
                     # (note some authors leave out middle names, so exact string matching is not possible)
                 if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
-                    # Only add new authors if they match with any author of this paper
-                    if new_author:
-                        assert author is not None, f"For a True {new_author=}, {author=} should never be None"
-                        authors.append(author)
-                        seen_author_ids.add(author_id or author.author_id)
-
-                        if author_id != author.author_id:
-                            corrected_ids[author_id] = author.author_id
-
-                    # Correct id if it has been updated
-                    if author_id in corrected_ids:
-                        author_id = corrected_ids[author_id]
-
-                    min_dist_authorship.author_id = author_id
+                    min_dist_authorship.author_id = author.author_id
             
             logging.info(f"{i}/{len(papers)} papers processed")
-    return authors
+
+    authors = get_authors_with_papers(author_id_map.values(), papers)
+    return list(authors)

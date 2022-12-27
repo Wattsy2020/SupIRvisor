@@ -48,6 +48,7 @@ def analyse_conf(conf: str) -> None:
     pprint.pprint(papers[:10])
 
     # Get author data from SemanticScholar
+    print("\nExtracting Authors:")
     authors = list(author_info.get_author_data(papers))
     print("\n\nAuthors:")
     pprint.pprint(authors[:10])

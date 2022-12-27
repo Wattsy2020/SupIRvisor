@@ -2,13 +2,11 @@
 import os
 import re
 import time
+from tqdm import tqdm
 import pickle
 import requests
 import Levenshtein
 from typing import Optional, Any, Iterable, Iterator
-
-import logging
-logger = logging.getLogger(__name__)
 
 from analyse_conf.data import Paper, Authorship, Author
 
@@ -256,7 +254,7 @@ def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     """
     filtered_authors: set[Author] = set()
     with SemanticScholarQuerier() as query_engine:
-        for i, paper in enumerate(papers):
+        for paper in tqdm(papers):
             paper_json = query_engine.get_paper(paper)
             if paper_json is None:
                 continue
@@ -268,5 +266,3 @@ def get_author_data(papers: list[Paper]) -> Iterator[Author]:
             new_authors = matched_authors.difference(filtered_authors)
             yield from new_authors
             filtered_authors = filtered_authors.union(new_authors)
-
-            logging.info(f"{i}/{len(papers)} papers processed")

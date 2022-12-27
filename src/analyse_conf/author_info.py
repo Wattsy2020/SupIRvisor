@@ -3,13 +3,13 @@ import os
 import pickle
 import re
 import time
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any, Iterator, Optional
 
 import Levenshtein
 import requests
 from tqdm import tqdm
 
-from analyse_conf.data import Author, Authorship, Paper
+from analyse_conf.data import Author, Paper
 
 
 def equal_titles(title1: str, title2: str) -> bool:
@@ -28,8 +28,8 @@ def shares_author(paper_json: dict[str, Any], paper: Paper) -> bool:
 
 def is_same_paper(paper_json: dict[str, Any], paper: Paper) -> bool:
     """
-    Check if a paper returned by search API matches the query
-    A paper matches if it has the same title, or is written by the same author (the name likely changed)
+    Check if a paper returned by search API matches the query, i.e. it has the same title,
+    or is written by the same author (the paper name likely changed)
     """
     if equal_titles(paper_json["title"], paper.title):
         return True
@@ -39,7 +39,7 @@ def is_same_paper(paper_json: dict[str, Any], paper: Paper) -> bool:
 def is_initialed(name: str) -> bool:
     """
     Determine whether a name is initialised, e.g. as L. Watts or L Watts
-    match strings that have a single isolated char (space on either side or start/end of line), with an optional dot
+    match strings that have a single isolated char with an optional dot
     """
     return bool(re.match(r".*(?:^| ).[\.]?(?:$| ).*", name))
 
@@ -69,10 +69,15 @@ def name_distance(name1: str, name2: str) -> int:
 
 class SemanticScholarQuerier:
     """
-    Make queries to the google scholar API, while keeping a persisted cache of previous queries, to avoid duplicate queries across sessions.
+    Make queries to the google scholar API
+    Keeps a persisted cache of previous queries, to avoid duplicate queries across sessions.
     Should ALWAYS be used with the WITH keyword (to load and write the cache).
     """
-    def __init__(self, api_path: str = "https://api.semanticscholar.org/graph/v1", cache_path: str = ".api_cache") -> None:
+    def __init__(
+        self,
+        api_path: str = "https://api.semanticscholar.org/graph/v1",
+        cache_path: str = ".api_cache"
+    ) -> None:
         self.__api_path = api_path
         self.__cache_path = cache_path
         self.__cache: dict[str, dict[str, Any]] = {} # maps API urls to Json responses
@@ -91,16 +96,14 @@ class SemanticScholarQuerier:
 
     def __get_json(self, resource_url: str) -> dict[str, Any]:
         """
-        Return the json for a get request on the given resource url for the SemanticScholar graph API.
-        Cache new requests, and return the cached result for any previously seen API requests.
+        Return the json for a get request on `resource_url` to the SemanticScholar graph API
+        Cache new requests, and return the cached result for any previously seen API requests
         """
         if resource_url in self.__cache:
             return self.__cache[resource_url]
-        
-        logging.info(f"Request for {resource_url}")
+
         response = requests.get(f"{self.__api_path}/{resource_url}")
         if response.status_code == 429: # too many requests, retry later
-            logging.info(f"Recursing for {resource_url=}, {response=}, {response.headers=}")
             time.sleep(60)
             return self.__get_json(resource_url)
         response.raise_for_status()
@@ -123,37 +126,42 @@ class SemanticScholarQuerier:
         """Given a title, and one author: search for a paper and return its json object"""
         paper_json = self.__search_paper(paper.title)
 
-        # If the search has no results, the paper might have been renamed, search again with the author appended to the query
+        # If the search has no results, the paper might have been renamed
+        # search again with the author appended to the query
         if paper_json["total"] == 0:
             paper_json = self.__search_paper(f"{paper.title} {paper.authorships[0].author_name}")
 
-        # If the search still no results: remove words from the end of the title (sometimes missing spaces confuses SemanticScholar)
+        # If the search still no results: remove words from the end of the title
+        # (sometimes missing spaces confuses SemanticScholar)
         title = paper.title
         while paper_json["total"] == 0:
             title_words = title.split(" ")
-            if len(title_words) < 3: # too few search terms will give a poor result, so treat the paper as unfindable
+            # too few search terms will give a poor result, so treat the paper as unfindable
+            if len(title_words) < 3:
                 return None
             title = " ".join(title_words[:-1])
             paper_json = self.__search_paper(title)
 
-        # If the top paper doesn't have a matching author, look at the next results (note: it may have been renamed, but by the same author)
+        # If the top paper doesn't have a matching author, look at the next results 
+        # note: the paper may have been renamed, but by the same author
         paper_idx = 0
         total_papers = len(paper_json["data"])
         while not is_same_paper(paper_json["data"][paper_idx], paper):
             paper_idx += 1
             if paper_idx == total_papers: # no matches found in all the results
                 return None
-        
+
         return paper_json["data"][paper_idx]
 
-    def get_author(self, id: str) -> dict[str, Any]:
+    def get_author(self, author_id: str) -> dict[str, Any]:
         """Return the author json for the given id"""
-        return self.__get_json(f"author/{id}?fields=name,affiliations,paperCount,citationCount,hIndex")
+        return self.__get_json(f"author/{author_id}?fields=name,affiliations,paperCount,citationCount,hIndex")
 
     def search_author(self, author_name: str, paper_json: dict[str, Any]) -> Optional[str]:
         """
-        Given an author name return the correct authorId, by finding the authorId that wrote papers with the given co_authors
-        
+        Given an author name return the correct authorId, 
+        by finding the authorId that wrote papers with the given co_authors
+
         If there are no search results from the API this returns none
         """
         co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
@@ -169,14 +177,18 @@ class SemanticScholarQuerier:
                 for co_author in paper["authors"]:
                     if co_author["authorId"] in co_author_ids:
                         author_score[potential_match_id] = author_score.get(potential_match_id, 0) + 1
-        
+
         return max(author_score, key=lambda x: author_score[x]) if author_score else None
 
 
-def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], query_engine: SemanticScholarQuerier) -> Optional[Author]:
+def extract_author(
+    author_id_json: dict[str, str],
+    paper_json: dict[str, Any],
+    query_engine: SemanticScholarQuerier
+) -> Optional[Author]:
     """Search the API for author_id_json, then create and return an Author object"""
     # search for the Author if no id is given
-    if author_id_json["authorId"] is None: 
+    if author_id_json["authorId"] is None:
         author_id = query_engine.search_author(author_id_json["name"], paper_json)
     else:
         author_id = author_id_json["authorId"]
@@ -184,7 +196,7 @@ def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], q
     # query API and create author object
     if author_id:
         author_json = query_engine.get_author(author_id)
-        return Author.from_API_json(author_json)
+        return Author.from_api_json(author_json)
     return None
 
 
@@ -209,7 +221,7 @@ def get_authors(paper_json: dict[str, Any], query_engine: SemanticScholarQuerier
             elif author_id != author.author_id:
                 _author_id_map[author_id] = author
             _author_id_map[author.author_id] = author
-        
+
         paper_authors.append(_author_id_map[author_id])
     return paper_authors
 
@@ -221,14 +233,14 @@ def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Aut
     This helps in later data analysis, to distinguish between different authors with similar names
 
     Returns:
-        authors: The set of authors who were matched with a paper's authorships. 
-                 This leaves out candidate authors whose name wasn't similar to any authors of the paper
+        authors: The set of authors who were matched with a paper's authorships.
+            This leaves out candidate authors whose name wasn't similar to any authors of the paper
     """
     matched_authors: set[Author] = set()
     for author in authors:
-        # Greedily match the current Author against all authorships that haven't already been matched with
+        # Greedily match the current Author against all authorships that haven't been matched with
         distances = {
-            authorship: name_distance(author.author_name, authorship.author_name) 
+            authorship: name_distance(author.author_name, authorship.author_name)
             for authorship in paper.authorships
             if authorship.author_id is None
         }
@@ -237,9 +249,9 @@ def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Aut
         # This happens when there are additional authors listed on SemanticScholar, that aren't listed in the conference data
         if not distances:
             break
-        min_dist_authorship = min(distances, key=lambda x: distances[x])
+        min_dist_authorship = min(distances.items(), key=lambda key_value: key_value[1])[0]
 
-        # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
+        # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id
             # otherwise require less than 5 levenshtein distance
             # (note some authors leave out middle names, so exact string matching is not possible)
         if len(authors) == len(paper.authorships) or distances[min_dist_authorship] < 5:

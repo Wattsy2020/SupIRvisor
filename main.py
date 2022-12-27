@@ -10,6 +10,7 @@ import analyse_conf
 
 
 def main() -> None:
+    """call analyse_conf for the conference given by CLI input"""
     parser = argparse.ArgumentParser()
     parser.add_argument("conference", type=str, help="name and year of the conference")
     args = parser.parse_args()

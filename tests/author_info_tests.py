@@ -15,7 +15,7 @@ from analyse_conf.author_info import (
     is_same_paper,
     name_distance,
 )
-from analyse_conf.data import Author, Authorship, Paper
+from analyse_conf.data import Author, Paper
 
 
 def test_is_initialed() -> None:
@@ -64,10 +64,10 @@ def test_search_author() -> None:
     test_author_name = 'Nicholas Lim'
     test_paper_json = {
         'paperId': '684877258525dced03ebb049c7bf3c3c69999f9f', 
-        'title': 'Hierarchical Multi-Task Graph Recurrent Network for Next POI Recommendation', 
+        'title': 'Hierarchical Multi-Task Graph Recurrent Network for Next POI Recommendation',
         'authors': [
-                {'authorId': None, 'name': 'Nicholas Lim'}, {'authorId': '2019961', 'name': 'Bryan Hooi'}, 
-                {'authorId': '1794527', 'name': 'See-Kiong Ng'}, {'authorId': '1995261298', 'name': 'Yong Liang Goh'}, 
+                {'authorId': None, 'name': 'Nicholas Lim'}, {'authorId': '2019961', 'name': 'Bryan Hooi'},
+                {'authorId': '1794527', 'name': 'See-Kiong Ng'}, {'authorId': '1995261298', 'name': 'Yong Liang Goh'},
                 {'authorId': '49361860', 'name': 'Renrong Weng'}, {'authorId': '2052819973', 'name': 'Rui Tan'}
             ]
         }

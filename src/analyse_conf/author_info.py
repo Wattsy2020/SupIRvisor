@@ -189,28 +189,17 @@ def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], q
     return None
 
 
-def get_authors_with_papers(authors: Iterable[Author], papers: list[Paper]) -> Iterator[Author]:
-    """Filter the `authors` list to authors who have written a paper in `papers`"""
-    authors_with_papers = {
-        authorship.author_id
-        for paper in papers
-        for authorship in paper.authorships
-        if authorship.author_id is not None
-    }
-    yield from (author for author in authors if author.author_id in authors_with_papers)
-
-
-def match_authors_to_authorships(authors: list[Author], paper: Paper) -> list[Author]:
+def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Author]:
     """
     Given a list of candidate `authors`, match their names to the authors of the given `paper`,
     filling in the author_ids in paper.authorships
     This helps in later data analysis, to distinguish between different authors with similar names
 
     Returns:
-        authors: The list of authors who were matched with a paper's authorships. 
+        authors: The set of authors who were matched with a paper's authorships. 
                  This leaves out candidate authors whose name wasn't similar to any authors of the paper
     """
-    matched_authors: list[Author] = []
+    matched_authors: set[Author] = set()
     for author in authors:
         # Greedily match the current Author against all authorships that haven't already been matched with
         distances = {
@@ -230,15 +219,17 @@ def match_authors_to_authorships(authors: list[Author], paper: Paper) -> list[Au
             # (note some authors leave out middle names, so exact string matching is not possible)
         if len(authors) == len(paper.authorships) or distances[min_dist_authorship] < 5:
             min_dist_authorship.author_id = author.author_id
+            matched_authors.add(author)
     return matched_authors
 
 
-def get_author_data(papers: list[Paper]) -> list[Author]:
+def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     """
     Create authors and extract their data from SemanticScholar
     Also mutates the paper list, adding author_ids to the authorships of each paper
     """
     author_id_map: dict[str, Author] = {}
+    filtered_authors: set[Author] = set()
 
     # Loop through all papers, searching for them on semantic scholar, then searching for their authors
     with SemanticScholarQuerier() as query_engine:
@@ -270,8 +261,9 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 assert isinstance(author_id, str), "a None author_id should be assigned to a correct one at this point"
                 paper_authors.append(author_id_map[author_id])
 
-            match_authors_to_authorships(paper_authors, paper)
-            logging.info(f"{i}/{len(papers)} papers processed")
+            matched_authors = match_authors_to_authorships(paper_authors, paper)
+            new_authors = matched_authors.difference(filtered_authors)
+            yield from new_authors
+            filtered_authors = filtered_authors.union(new_authors)
 
-    authors = get_authors_with_papers(author_id_map.values(), papers)
-    return list(authors)
+            logging.info(f"{i}/{len(papers)} papers processed")

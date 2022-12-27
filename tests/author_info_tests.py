@@ -122,10 +122,10 @@ def test_get_paper_author_consistency(papers: list[Paper]) -> None:
     warnings.warn(f"For {num_inconsistent_authors} papers, a different number of authors are found by the SemanticScholar API")
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def authors(papers: list[Paper]) -> list[Author]:
     """Extract authors for testing"""
-    return get_author_data(papers)
+    return list(get_author_data(papers))
 
 
 def test_get_author_data(authors: list[Author]) -> None:

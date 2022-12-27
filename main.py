@@ -4,8 +4,9 @@ Analyse a conference by calling the main function of the analyse conference pack
 Supported conferences:
 - SIGIR2022
 """
-import analyse_conf
 import argparse
+
+import analyse_conf
 
 
 def main() -> None:

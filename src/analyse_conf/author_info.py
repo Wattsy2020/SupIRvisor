@@ -1,14 +1,15 @@
 """Provides functions that extract further data of each author from google scholar"""
 import os
+import pickle
 import re
 import time
-from tqdm import tqdm
-import pickle
-import requests
-import Levenshtein
-from typing import Optional, Any, Iterable, Iterator
+from typing import Any, Iterable, Iterator, Optional
 
-from analyse_conf.data import Paper, Authorship, Author
+import Levenshtein
+import requests
+from tqdm import tqdm
+
+from analyse_conf.data import Author, Authorship, Paper
 
 
 def equal_titles(title1: str, title2: str) -> bool:

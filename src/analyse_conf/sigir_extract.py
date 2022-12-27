@@ -2,10 +2,10 @@
 Web scraping to extract information about Accepted papers and Authors
 from the SIGIR2022 Accepted paper list, located here: https://sigir.org/sigir2022/program/accepted/
 """
-import requests
 import bs4
+import requests
 
-from analyse_conf.data import Paper, Authorship
+from analyse_conf.data import Authorship, Paper
 
 
 def get_paper_tags(url: str) -> list[bs4.element.Tag]:

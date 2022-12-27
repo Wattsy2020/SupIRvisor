@@ -1,16 +1,15 @@
 """Combines the entire source code to analyse a conference based on authorship information"""
 from __future__ import annotations
 
-from pathlib import Path
-import attr
-import pprint
-import pandas as pd
-from typing import Sequence
 import logging
+import pprint
+from pathlib import Path
+from typing import Sequence
 
-from analyse_conf import sigir_extract
-from analyse_conf import author_info
+import attr
+import pandas as pd
 
+from analyse_conf import author_info, sigir_extract
 
 CONFERENCE_TO_WEBSCRAPER = {
     "SIGIR2022": sigir_extract

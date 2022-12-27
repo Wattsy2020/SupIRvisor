@@ -1,13 +1,21 @@
 """Tests author_info.py"""
 import os
 import pickle
-import pytest
 import warnings
 from collections import Counter
 
-from analyse_conf.data import Paper, Author, Authorship
+import pytest
+
 from analyse_conf import sigir_extract
-from analyse_conf.author_info import SemanticScholarQuerier, get_author_data, is_same_paper, is_initialed, initialise_name, name_distance
+from analyse_conf.author_info import (
+    SemanticScholarQuerier,
+    get_author_data,
+    initialise_name,
+    is_initialed,
+    is_same_paper,
+    name_distance,
+)
+from analyse_conf.data import Author, Authorship, Paper
 
 
 def test_is_initialed() -> None:

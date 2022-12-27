@@ -1,6 +1,7 @@
 """Defines the Dataclasses used to represent Papers, Authors, and Authorship"""
+from typing import Any, Optional
+
 import attr
-from typing import Optional, Any
 
 
 @attr.define

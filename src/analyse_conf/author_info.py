@@ -200,6 +200,39 @@ def get_authors_with_papers(authors: Iterable[Author], papers: list[Paper]) -> I
     yield from (author for author in authors if author.author_id in authors_with_papers)
 
 
+def match_authors_to_authorships(authors: list[Author], paper: Paper) -> list[Author]:
+    """
+    Given a list of candidate `authors`, match their names to the authors of the given `paper`,
+    filling in the author_ids in paper.authorships
+    This helps in later data analysis, to distinguish between different authors with similar names
+
+    Returns:
+        authors: The list of authors who were matched with a paper's authorships. 
+                 This leaves out candidate authors whose name wasn't similar to any authors of the paper
+    """
+    matched_authors: list[Author] = []
+    for author in authors:
+        # Greedily match the current Author against all authorships that haven't already been matched with
+        distances = {
+            authorship: name_distance(author.author_name, authorship.author_name) 
+            for authorship in paper.authorships
+            if authorship.author_id is None
+        }
+
+        # Stop once all authors have been matched
+        # This happens when there are additional authors listed on SemanticScholar, that aren't listed in the conference data
+        if not distances:
+            break
+        min_dist_authorship = min(distances, key=lambda x: distances[x])
+
+        # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
+            # otherwise require less than 5 levenshtein distance
+            # (note some authors leave out middle names, so exact string matching is not possible)
+        if len(authors) == len(paper.authorships) or distances[min_dist_authorship] < 5:
+            min_dist_authorship.author_id = author.author_id
+    return matched_authors
+
+
 def get_author_data(papers: list[Paper]) -> list[Author]:
     """
     Create authors and extract their data from SemanticScholar
@@ -215,6 +248,7 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                 continue
 
             # Retrieve and add all new author details
+            paper_authors: list[Author] = []
             for author_id_json in paper_json["authors"]:
                 author_id = author_id_json["authorId"]
 
@@ -234,27 +268,9 @@ def get_author_data(papers: list[Paper]) -> list[Author]:
                     author_id_map[author.author_id] = author
                 
                 assert isinstance(author_id, str), "a None author_id should be assigned to a correct one at this point"
-                author = author_id_map[author_id]
+                paper_authors.append(author_id_map[author_id])
 
-                # Add author_id to the paper authorship info, to distinguish between different authors with similar names
-                # Greedily match the current Author against all authorships that haven't already been matched with
-                distances = {
-                    authorship: name_distance(author.author_name, authorship.author_name) 
-                    for authorship in paper.authorships
-                    if authorship.author_id is None
-                }
-                # If all authors have been matched exit the loop
-                # This happens when there are additional authors listed on SemanticScholar, that aren't listed in the conference data
-                if not distances:
-                    break
-                min_dist_authorship = min(distances, key=lambda x: distances[x])
-
-                # If number of authors is consistent: Set author with the lowest Levenshtein distance to the current author_id, 
-                    # otherwise require less than 5 levenshtein distance
-                    # (note some authors leave out middle names, so exact string matching is not possible)
-                if len(paper_json["authors"]) == len(paper.authorships) or distances[min_dist_authorship] < 5:
-                    min_dist_authorship.author_id = author.author_id
-            
+            match_authors_to_authorships(paper_authors, paper)
             logging.info(f"{i}/{len(papers)} papers processed")
 
     authors = get_authors_with_papers(author_id_map.values(), papers)

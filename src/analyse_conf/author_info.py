@@ -189,6 +189,32 @@ def extract_author(author_id_json: dict[str, str], paper_json: dict[str, Any], q
     return None
 
 
+_author_id_map: dict[str, Author] = {}
+def get_authors(paper_json: dict[str, Any], query_engine: SemanticScholarQuerier) -> list[Author]:
+    """Extract all authors for a given `paper_json`. Uses a cache"""
+    paper_authors: list[Author] = []
+    for author_id_json in paper_json["authors"]:
+        author_id: str | None = author_id_json["authorId"]
+
+        # Search API for authors we haven't extracted yet
+        if author_id is None or author_id not in _author_id_map:
+            author = extract_author(author_id_json, paper_json, query_engine)
+            if not author: # failed to find author
+                continue
+
+            # Map author_ids to this extracted author
+            # (including outdated ones that differ between Paper and Author API)
+            # Do not map author_id of None, as there are multiple such author_ids
+            if author_id is None: # update so we can later retrieve the author
+                author_id = author.author_id
+            elif author_id != author.author_id:
+                _author_id_map[author_id] = author
+            _author_id_map[author.author_id] = author
+        
+        paper_authors.append(_author_id_map[author_id])
+    return paper_authors
+
+
 def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Author]:
     """
     Given a list of candidate `authors`, match their names to the authors of the given `paper`,
@@ -228,40 +254,17 @@ def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     Create authors and extract their data from SemanticScholar
     Also mutates the paper list, adding author_ids to the authorships of each paper
     """
-    author_id_map: dict[str, Author] = {}
     filtered_authors: set[Author] = set()
-
-    # Loop through all papers, searching for them on semantic scholar, then searching for their authors
     with SemanticScholarQuerier() as query_engine:
         for i, paper in enumerate(papers):
             paper_json = query_engine.get_paper(paper)
             if paper_json is None:
                 continue
 
-            # Retrieve and add all new author details
-            paper_authors: list[Author] = []
-            for author_id_json in paper_json["authors"]:
-                author_id = author_id_json["authorId"]
-
-                # Search API for authors we haven't extracted yet
-                if author_id is None or author_id not in author_id_map:
-                    author = extract_author(author_id_json, paper_json, query_engine)
-                    if not author: # failed to find author
-                        continue
-
-                    # Map author_ids to this extracted author
-                    # (including outdated ones that differ between Paper and Author API)
-                    # Do not map author_id of None, as there are multiple such author_ids
-                    if author_id is None: # update so we can later retrieve the author
-                        author_id = author.author_id
-                    elif author_id != author.author_id:
-                        author_id_map[author_id] = author
-                    author_id_map[author.author_id] = author
-                
-                assert isinstance(author_id, str), "a None author_id should be assigned to a correct one at this point"
-                paper_authors.append(author_id_map[author_id])
-
+            paper_authors = get_authors(paper_json, query_engine)
             matched_authors = match_authors_to_authorships(paper_authors, paper)
+
+            # yield any matched authors not previously yielded
             new_authors = matched_authors.difference(filtered_authors)
             yield from new_authors
             filtered_authors = filtered_authors.union(new_authors)

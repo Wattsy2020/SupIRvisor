@@ -58,7 +58,7 @@ def analyse_conf(conf: str) -> None:
     pprint.pprint(authorships[:10])
 
     # Write data to file
-    write_class_list(authors, output_dir / "authors.csv")
+    write_class_list(authors, output_dir / "authors.csv") # type: ignore[arg-type]
     write_class_list(papers, output_dir / "papers.csv")
     write_class_list(authorships, output_dir / "authorships.csv")
 

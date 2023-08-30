@@ -2,5 +2,4 @@
 *.pyc
 *.log
 .mypy_cache/*
-outputs/*
 .api_cache

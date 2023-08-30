@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from attrs import define, field
 
 from analyse_conf.data import JsonDict, Paper
 
@@ -31,48 +32,42 @@ def is_same_paper(paper_json: JsonDict, paper: Paper) -> bool:
     return equal_titles(paper_json["title"], paper.title) or shares_author(paper_json, paper)
 
 
+@define(slots=True, frozen=True)
 class SemanticScholarQuerier:
     """
-    Make queries to the google scholar API
+    A context manager that makes queries to the semantic scholar API
     Keeps a persisted cache of previous queries, to avoid duplicate queries across sessions.
-    Should ALWAYS be used with the WITH keyword (to load and write the cache).
     """
-
-    def __init__(
-        self,
-        api_path: str = "https://api.semanticscholar.org/graph/v1",
-        cache_path: str = ".api_cache",
-    ) -> None:
-        self.__api_path = api_path
-        self.__cache_path = Path(cache_path)
-        self.__cache: dict[str, JsonDict] = {}  # maps API urls to Json responses
+    api_path: str = field(default="https://api.semanticscholar.org/graph/v1")
+    cache_path: Path = field(converter=Path, default=Path(".api_cache"))
+    _cache: dict[str, JsonDict] = field(factory=dict)
 
     def __enter__(self) -> SemanticScholarQuerier:
         """Load the cache from file"""
-        if self.__cache_path.exists():
-            self.__cache = pickle.load(self.__cache_path.open("rb"))
+        if self.cache_path.exists():
+            self._cache.update(pickle.load(self.cache_path.open("rb")))
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Write the cache to file"""
-        with open(self.__cache_path, "wb") as file:
-            pickle.dump(self.__cache, file)
+        with open(self.cache_path, "wb") as file:
+            pickle.dump(self._cache, file)
 
     def __get_json(self, resource_url: str) -> JsonDict:
         """
         Return the json for a get request on `resource_url` to the SemanticScholar graph API
         Cache new requests, and return the cached result for any previously seen API requests
         """
-        if resource_url in self.__cache:
-            return self.__cache[resource_url]
+        if resource_url in self._cache:
+            return self._cache[resource_url]
 
-        response = requests.get(f"{self.__api_path}/{resource_url}")
+        response = requests.get(f"{self.api_path}/{resource_url}")
         if response.status_code == 429:  # too many requests, retry later
             time.sleep(60)
             return self.__get_json(resource_url)
         response.raise_for_status()
         json = response.json()
-        self.__cache[resource_url] = json
+        self._cache[resource_url] = json
         return json
 
     @staticmethod

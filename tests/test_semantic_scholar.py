@@ -44,7 +44,7 @@ def test_query_cache() -> None:
     # Check queries are written to the in memory cache
     with SemanticScholarQuerier(cache_path=str(cache_path)) as query_engine:
         query_engine._SemanticScholarQuerier__get_json(test_url) # type: ignore # mypy doesn't understand private variable accessing
-        assert test_url in query_engine._SemanticScholarQuerier__cache, "URL is not cached to dict" # type: ignore
+        assert test_url in query_engine._cache, "URL is not cached to dict" # type: ignore
 
     # Open the persisted cache and check its contents
     assert cache_path.exists(), "Cache file not created"

@@ -3,7 +3,7 @@ from collections import Counter
 
 from analyse_conf.author_info import name_distance
 from analyse_conf.data import Author, Paper
-from analyse_conf.semantic_scholar import SemanticScholarQuerier
+from analyse_conf.semantic_scholar import SemanticScholarSearcher
 
 
 def test_get_author_paper_consistency(papers: list[Paper], authors: list[Author]) -> None:
@@ -13,14 +13,14 @@ def test_get_author_paper_consistency(papers: list[Paper], authors: list[Author]
     different_name_matches: list[tuple[str, str]] = [] # store borderline name matches and display at the end
     authors_with_papers: set[str] = set()
 
-    with SemanticScholarQuerier() as query_engine:
+    with SemanticScholarSearcher() as search_engine:
         for paper in papers:
             author_id_count = Counter([authorship.author_id for authorship in paper.authorships])
             authors_with_papers = authors_with_papers.union({id for id in author_id_count.keys() if id is not None})
 
             # If paper has no author_ids, assert that it's not available on Semantic Scholar
             if author_id_count[None] == len(paper.authorships):
-                if query_engine.get_paper(paper) is not None:
+                if search_engine.search_paper(paper) is not None:
                     warnings.warn(
                         f"Paper is available on Semantic Scholar, but author information wasn't extracted, {paper.authorships=}"
                     )

@@ -3,13 +3,17 @@ import warnings
 from pathlib import Path
 
 from analyse_conf.data import Paper
-from analyse_conf.semantic_scholar import SemanticScholarQuerier, is_same_paper
+from analyse_conf.semantic_scholar import (
+    SemanticScholarQuerier,
+    SemanticScholarSearcher,
+    is_same_paper,
+)
 
 
 def test_get_author() -> None:
-    """Test that SemanticScholarQuerier.get_author returns all the required fields"""
-    with SemanticScholarQuerier() as query_engine:
-        author_json = query_engine.get_author("1741101")
+    """Test that SemanticScholarSearcher.search_author_by_id returns all the required fields"""
+    with SemanticScholarSearcher() as search_engine:
+        author_json = search_engine.search_author_by_id("1741101")
         assert "authorId" in author_json
         assert "citationCount" in author_json
         assert "paperCount" in author_json
@@ -31,8 +35,8 @@ def test_search_author() -> None:
                 {'authorId': '49361860', 'name': 'Renrong Weng'}, {'authorId': '2052819973', 'name': 'Rui Tan'}
             ]
         }
-    with SemanticScholarQuerier() as query_engine:
-        calc_author_id = query_engine.search_author(test_author_name, test_paper_json)
+    with SemanticScholarSearcher() as search_engine:
+        calc_author_id = search_engine.search_author_by_name(test_author_name, test_paper_json)
     assert test_author_id == calc_author_id, "Wrong author ids retrieved"
 
 
@@ -54,11 +58,11 @@ def test_query_cache() -> None:
  
 
 def test_get_paper(papers: list[Paper]) -> None:
-    """Test that a subset of papers from SIGIR can be found using SemanticScholarQuerier.get_paper"""
-    with SemanticScholarQuerier() as query_engine:
+    """Test that a subset of papers from SIGIR can be found using SemanticScholarSearch.search_paper"""
+    with SemanticScholarSearcher() as search_engine:
         for paper in papers:
             first_author_name = paper.authorships[0].author_name
-            paper_json = query_engine.get_paper(paper)
+            paper_json = search_engine.search_paper(paper)
 
             if paper_json is None:
                 warnings.warn(f"No paper found for {paper.title=}")
@@ -72,9 +76,9 @@ def test_get_paper(papers: list[Paper]) -> None:
 def test_get_paper_author_consistency(papers: list[Paper]) -> None:
     """Calculate the number of papers for which not all authors are represented by the SemanticScholar API"""
     num_inconsistent_authors = 0
-    with SemanticScholarQuerier() as query_engine:
+    with SemanticScholarSearcher() as search_engine:
         for paper in papers:
-            paper_json = query_engine.get_paper(paper)
+            paper_json = search_engine.search_paper(paper)
             if paper_json is None:
                 continue
             if len(paper_json["authors"]) != len(paper.authorships):

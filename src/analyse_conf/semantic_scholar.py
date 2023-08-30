@@ -13,25 +13,6 @@ from attrs import define, field
 from analyse_conf.data import JsonDict, Paper
 
 
-def equal_titles(title1: str, title2: str) -> bool:
-    """Compare the first three words of each title to check for equality"""
-    return title1.lower().split(" ")[:3] == title2.lower().split(" ")[:3]
-
-
-def shares_author(paper_json: JsonDict, paper: Paper) -> bool:
-    """Check if the paper_json shares any authors with a paper"""
-    target_authors = {authorship.author_name for authorship in paper.authorships}
-    return any(author["name"].lower() in target_authors for author in paper_json["authors"])
-
-
-def is_same_paper(paper_json: JsonDict, paper: Paper) -> bool:
-    """
-    Check if a paper returned by search API matches the query, i.e. it has the same title,
-    or is written by the same author (the paper name likely changed)
-    """
-    return equal_titles(paper_json["title"], paper.title) or shares_author(paper_json, paper)
-
-
 @define(slots=True, frozen=True)
 class SemanticScholarQuerier:
     """
@@ -75,20 +56,64 @@ class SemanticScholarQuerier:
         """Remove punctuation and spaces from a query, to make it api friendly"""
         return re.sub(r"[^\w]", "+", query)
 
-    def __search_paper(self, query: str) -> JsonDict:
+    def search_paper(self, query: str) -> JsonDict:
         """Convert paper search query to a url, and search for it"""
         query = self.__clean_query(query)
         query_url = f"paper/search?query={query}&fields=authors,title"
         return self.__get_json(query_url)
 
-    def get_paper(self, paper: Paper) -> JsonDict | None:
-        """Given a title, and one author: search for a paper and return its json object"""
-        paper_json = self.__search_paper(paper.title)
+    def search_author_by_id(self, author_id: str) -> JsonDict:
+        """Return the author json for the given id"""
+        return self.__get_json(
+            f"author/{author_id}?fields=name,affiliations,paperCount,citationCount,hIndex"
+        )
+    
+    def search_author_by_name(self, author_name: str) -> JsonDict:
+        cleaned_name = self.__clean_query(author_name)
+        return self.__get_json(
+            f"author/search?query={cleaned_name}&fields=papers.authors&limit=20"
+        )
+
+
+def equal_titles(title1: str, title2: str) -> bool:
+    """Compare the first three words of each title to check for equality"""
+    return title1.lower().split(" ")[:3] == title2.lower().split(" ")[:3]
+
+
+def shares_author(paper_json: JsonDict, paper: Paper) -> bool:
+    """Check if the paper_json shares any authors with a paper"""
+    target_authors = {authorship.author_name for authorship in paper.authorships}
+    return any(author["name"].lower() in target_authors for author in paper_json["authors"])
+
+
+def is_same_paper(paper_json: JsonDict, paper: Paper) -> bool:
+    """
+    Check if a paper returned by search API matches the query, i.e. it has the same title,
+    or is written by the same author (the paper name likely changed)
+    """
+    return equal_titles(paper_json["title"], paper.title) or shares_author(paper_json, paper)
+
+
+class SemanticScholarSearcher:
+    """
+    Given paper information, searches for that paper and its authors on semantic scholar
+    """
+
+    def __enter__(self) -> SemanticScholarSearcher:
+        self.query_engine = SemanticScholarQuerier().__enter__()
+        return self
+    
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.query_engine.__exit__(exc_type, exc_val, exc_tb)
+
+    def search_paper(self, paper: Paper) -> JsonDict | None:
+        """Search for the paper on Semantic Scholar"""
+        paper_json = self.query_engine.search_paper(paper.title)
 
         # If the search has no results, the paper might have been renamed, try adding the author
         if paper_json["total"] == 0:
             title_with_author = f"{paper.title} {paper.authorships[0].author_name}"
-            paper_json = self.__search_paper(title_with_author)
+            paper_json = self.query_engine.search_paper(title_with_author)
 
         # If the search still no results: remove words from the end of the title
         # (sometimes missing spaces confuses SemanticScholar)
@@ -99,7 +124,7 @@ class SemanticScholarQuerier:
             if len(title_words) < 3:
                 return None
             title = " ".join(title_words[:-1])
-            paper_json = self.__search_paper(title)
+            paper_json = self.query_engine.search_paper(title)
 
         # If the top paper doesn't have a matching author, look at the next results
         # note: the paper may have been renamed, but by the same author
@@ -112,13 +137,8 @@ class SemanticScholarQuerier:
 
         return paper_json["data"][paper_idx]
 
-    def get_author(self, author_id: str) -> JsonDict:
-        """Return the author json for the given id"""
-        return self.__get_json(
-            f"author/{author_id}?fields=name,affiliations,paperCount,citationCount,hIndex"
-        )
 
-    def search_author(self, author_name: str, paper_json: JsonDict) -> str | None:
+    def search_author_by_name(self, author_name: str, paper_json: JsonDict) -> str | None:
         """
         Given an author name return the correct authorId,
         by finding the authorId that wrote papers with the given co_authors
@@ -126,10 +146,7 @@ class SemanticScholarQuerier:
         If there are no search results from the API this returns none
         """
         co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
-        author_name = self.__clean_query(author_name)
-        retrieved_authors = self.__get_json(
-            f"author/search?query={author_name}&fields=papers.authors&limit=20"
-        )
+        retrieved_authors = self.query_engine.search_author_by_name(author_name)
 
         # Find the most likely author by counting the number of shared co authors
         author_score: dict[str, int] = defaultdict(int)
@@ -142,3 +159,6 @@ class SemanticScholarQuerier:
                         author_score[potential_match_id] += 1
 
         return max(author_score, key=lambda x: author_score[x]) if author_score else None
+    
+    def search_author_by_id(self, author_id: str) -> JsonDict:
+        return self.query_engine.search_author_by_id(author_id)

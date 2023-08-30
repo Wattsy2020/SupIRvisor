@@ -8,7 +8,7 @@ import Levenshtein
 from tqdm import tqdm
 
 from analyse_conf.data import Author, JsonDict, Paper
-from analyse_conf.semantic_scholar import SemanticScholarQuerier
+from analyse_conf.semantic_scholar import SemanticScholarSearcher
 
 
 def is_initialed(name: str) -> bool:
@@ -50,26 +50,26 @@ def name_distance(name1: str, name2: str) -> int:
 def extract_author(
     author_id_json: dict[str, str | None],
     paper_json: JsonDict,
-    query_engine: SemanticScholarQuerier,
+    search_engine: SemanticScholarSearcher,
 ) -> Author | None:
     """Search the API for author_id_json, then create and return an Author object"""
     # search for the Author if no id is given
     if author_id_json["authorId"] is None:
         assert author_id_json["name"] is not None
-        author_id = query_engine.search_author(author_id_json["name"], paper_json)
+        author_id = search_engine.search_author_by_name(author_id_json["name"], paper_json)
     else:
         author_id = author_id_json["authorId"]
 
     # query API and create author object
     if author_id:
-        author_json = query_engine.get_author(author_id)
+        author_json = search_engine.search_author_by_id(author_id)
         return Author.from_api_json(author_json)
     return None
 
 
 _author_id_map: dict[str, Author] = {}
 def get_authors(
-    paper_json: JsonDict, query_engine: SemanticScholarQuerier
+    paper_json: JsonDict, search_engine: SemanticScholarSearcher
 ) -> list[Author]:
     """Extract all authors for a given `paper_json`. Uses a cache"""
     paper_authors: list[Author] = []
@@ -78,7 +78,7 @@ def get_authors(
 
         # Search API for authors we haven't extracted yet
         if author_id is None or author_id not in _author_id_map:
-            author = extract_author(author_id_json, paper_json, query_engine)
+            author = extract_author(author_id_json, paper_json, search_engine)
             if not author:  # failed to find author
                 continue
 
@@ -135,13 +135,13 @@ def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     Also mutates the paper list, adding author_ids to the authorships of each paper
     """
     filtered_authors: set[Author] = set()
-    with SemanticScholarQuerier() as query_engine:
+    with SemanticScholarSearcher() as search_engine:
         for paper in tqdm(papers):
-            paper_json = query_engine.get_paper(paper)
+            paper_json = search_engine.search_paper(paper)
             if paper_json is None:
                 continue
 
-            paper_authors = get_authors(paper_json, query_engine)
+            paper_authors = get_authors(paper_json, search_engine)
             matched_authors = match_authors_to_authorships(paper_authors, paper)
 
             # yield any matched authors not previously yielded

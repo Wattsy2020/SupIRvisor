@@ -129,6 +129,12 @@ def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Aut
     return matched_authors
 
 
+def get_papers_from_api(papers: list[Paper], search_engine: SemanticScholarSearcher) -> Iterator[tuple[Paper, JsonDict]]:
+    for paper in tqdm(papers):
+        if paper_json := search_engine.search_paper(paper):
+            yield paper, paper_json
+
+
 def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     """
     Create authors and extract their data from SemanticScholar
@@ -136,11 +142,7 @@ def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     """
     filtered_authors: set[Author] = set()
     with SemanticScholarSearcher() as search_engine:
-        for paper in tqdm(papers):
-            paper_json = search_engine.search_paper(paper)
-            if paper_json is None:
-                continue
-
+        for paper, paper_json in get_papers_from_api(papers, search_engine):
             paper_authors = get_authors(paper_json, search_engine)
             matched_authors = match_authors_to_authorships(paper_authors, paper)
 

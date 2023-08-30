@@ -1,6 +1,5 @@
 """Tests author_info.py"""
-from analyse_conf.author_info import (initialise_name, is_initialed,
-                                      name_distance)
+from analyse_conf.author_info import initialise_name, is_initialed, name_distance
 from analyse_conf.data import Author
 
 

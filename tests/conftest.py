@@ -1,4 +1,5 @@
 import pytest
+
 from analyse_conf.author_info import get_author_data
 from analyse_conf.data import Author, Paper
 from analyse_conf.sigir_extract import extract_data

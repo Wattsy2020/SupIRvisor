@@ -1,6 +1,6 @@
-from pathlib import Path
 import pickle
 import warnings
+from pathlib import Path
 
 from analyse_conf.data import Paper
 from analyse_conf.semantic_scholar import SemanticScholarQuerier, is_same_paper

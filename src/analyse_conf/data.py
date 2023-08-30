@@ -5,6 +5,7 @@ from typing import Any
 
 from attrs import define, field
 
+JsonDict = dict[str, Any]
 
 @define(slots=True, frozen=True)
 class Paper:

@@ -11,7 +11,11 @@ class Paper:
     """Simple class to store information about a paper"""
     title: str
     type: str
-    authorships: list[Authorship] = field(factory=list)
+    authorships: list[Authorship]
+
+    @classmethod
+    def from_author_names(cls, title: str, paper_type: str, author_names: list[str]):
+        return Paper(title, paper_type, [Authorship(title, name) for name in author_names])
 
 
 @define(slots=True, hash=True)

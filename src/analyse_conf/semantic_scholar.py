@@ -20,10 +20,7 @@ def equal_titles(title1: str, title2: str) -> bool:
 def shares_author(paper_json: JsonDict, paper: Paper) -> bool:
     """Check if the paper_json shares any authors with a paper"""
     target_authors = {authorship.author_name for authorship in paper.authorships}
-    for author in paper_json["authors"]:
-        if author["name"].lower() in target_authors:
-            return True
-    return False
+    return any(author["name"].lower() in target_authors for author in paper_json["authors"])
 
 
 def is_same_paper(paper_json: JsonDict, paper: Paper) -> bool:
@@ -31,9 +28,7 @@ def is_same_paper(paper_json: JsonDict, paper: Paper) -> bool:
     Check if a paper returned by search API matches the query, i.e. it has the same title,
     or is written by the same author (the paper name likely changed)
     """
-    if equal_titles(paper_json["title"], paper.title):
-        return True
-    return shares_author(paper_json, paper)
+    return equal_titles(paper_json["title"], paper.title) or shares_author(paper_json, paper)
 
 
 class SemanticScholarQuerier:

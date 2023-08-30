@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import pickle
 import warnings
 
@@ -38,21 +38,19 @@ def test_search_author() -> None:
 
 def test_query_cache() -> None:
     """Check that API queries are stored in the cache and persisted to disk"""
-    cache_path = ".api_cache_test"
+    cache_path = Path(".api_cache_test")
     test_url = "author/1741101?fields=affiliations,paperCount,citationCount,hIndex"
 
     # Check queries are written to the in memory cache
-    with SemanticScholarQuerier(cache_path=cache_path) as query_engine:
+    with SemanticScholarQuerier(cache_path=str(cache_path)) as query_engine:
         query_engine._SemanticScholarQuerier__get_json(test_url) # type: ignore # mypy doesn't understand private variable accessing
         assert test_url in query_engine._SemanticScholarQuerier__cache, "URL is not cached to dict" # type: ignore
 
     # Open the persisted cache and check its contents
-    assert os.path.exists(cache_path), "Cache file not created"
-    with open(cache_path, "rb") as file:
-        cache = pickle.load(file)
+    assert cache_path.exists(), "Cache file not created"
+    cache = pickle.load(cache_path.open("rb"))
     assert test_url in cache, "Queried URL is not stored in cache"
-
-    os.remove(cache_path)
+    cache_path.unlink()
  
 
 def test_get_paper(papers: list[Paper]) -> None:

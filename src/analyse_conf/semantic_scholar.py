@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import os
 import pickle
 import re
 import time
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -49,14 +49,13 @@ class SemanticScholarQuerier:
         cache_path: str = ".api_cache",
     ) -> None:
         self.__api_path = api_path
-        self.__cache_path = cache_path
+        self.__cache_path = Path(cache_path)
         self.__cache: dict[str, JsonDict] = {}  # maps API urls to Json responses
 
     def __enter__(self) -> SemanticScholarQuerier:
         """Load the cache from file"""
-        if os.path.exists(self.__cache_path):
-            with open(self.__cache_path, "rb") as file:
-                self.__cache = pickle.load(file)
+        if self.__cache_path.exists():
+            self.__cache = pickle.load(self.__cache_path.open("rb"))
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

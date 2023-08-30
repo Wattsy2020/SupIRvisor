@@ -23,14 +23,14 @@ def test_extract_paper_data() -> None:
     papers = sigir_extract.extract_paper_data(tags)
 
     # Check that the papers are unique and have one of the four correct types
-    paper_titles = set()
+    paper_titles: set[str] = set()
     for paper in papers:
         assert paper.title not in paper_titles, "Paper title is not unique"
         assert paper.type in ["Long", "Perspectives", "Reproducibility", "Short", "Resource", "Demos", "SIRIP"], "Paper type is not valid"
         paper_titles.add(paper.title)
 
     # Check that the authorships contain valid papers,
-    authorship_titles = set()
+    authorship_titles: set[str] = set()
     for paper in papers:
         for authorship in paper.authorships:
             assert authorship.title in paper_titles, "The paper does not exist"

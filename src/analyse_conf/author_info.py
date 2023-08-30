@@ -48,13 +48,14 @@ def name_distance(name1: str, name2: str) -> int:
 
 
 def extract_author(
-    author_id_json: dict[str, str],
+    author_id_json: dict[str, str | None],
     paper_json: JsonDict,
     query_engine: SemanticScholarQuerier,
 ) -> Author | None:
     """Search the API for author_id_json, then create and return an Author object"""
     # search for the Author if no id is given
     if author_id_json["authorId"] is None:
+        assert author_id_json["name"] is not None
         author_id = query_engine.search_author(author_id_json["name"], paper_json)
     else:
         author_id = author_id_json["authorId"]

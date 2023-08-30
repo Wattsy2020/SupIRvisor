@@ -1,37 +1,41 @@
 """Defines the Dataclasses used to represent Papers, Authors, and Authorship"""
-from typing import Any, Optional
+from __future__ import annotations
 
-import attr
+from typing import Any
+
+from attrs import define, field
 
 
-@attr.define
+@define(slots=True, frozen=True)
 class Paper:
     """Simple class to store information about a paper"""
-    title: str = attr.field()
-    type: str = attr.field()
-    authorships: list['Authorship'] = attr.field(factory=list)
+    title: str
+    type: str
+    authorships: list[Authorship] = field(factory=list)
 
-@attr.define(hash=True)
+
+@define(slots=True, hash=True)
 class Authorship:
     """Intermediate class to represent the many-to-many relationship between papers and authors"""
-    title: str = attr.field(hash=True)
-    author_name: str = attr.field(hash=True)
-    author_id: Optional[str] = attr.field(default=None) # the SemanticScholar authorId, to be populated later
+    title: str = field(hash=True)
+    author_name: str = field(hash=True)
+    author_id: str | None = field(default=None) # the SemanticScholar authorId, to be populated later
 
-@attr.define(hash=True)
+
+@define(slots=True, hash=True)
 class Author:
     """Represents an author"""
-    author_name: str = attr.field(hash=True, eq=True, order=True) # name can be used for comparison, but is unreliable as there are duplicates
-    author_id: str = attr.field(hash=True, eq=True, order=True) # use the SemanticScholar authorId to uniquely identify authors
+    author_name: str = field(hash=True, eq=True, order=True) # name can be used for comparison, but is unreliable as there are duplicates
+    author_id: str = field(hash=True, eq=True, order=True) # use the SemanticScholar authorId to uniquely identify authors
 
     # These attributes will be populated after initialisation
-    citations: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
-    paper_count: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
-    h_index: Optional[int] = attr.field(default=None, hash=False, eq=False, order=False)
-    institution: Optional[str] = attr.field(default=None, hash=False, eq=False, order=False) # not always available in the API
+    citations: int | None = field(default=None, hash=False, eq=False, order=False)
+    paper_count: int | None = field(default=None, hash=False, eq=False, order=False)
+    h_index: int | None = field(default=None, hash=False, eq=False, order=False)
+    institution: str | None = field(default=None, hash=False, eq=False, order=False) # not always available in the API
 
     @classmethod
-    def from_api_json(cls, author_json: dict[str, Any]) -> 'Author':
+    def from_api_json(cls, author_json: dict[str, Any]) -> Author:
         """Create author class from JSON returned by the SemanticScholar API"""
         return cls(
             author_name=author_json["name"], 

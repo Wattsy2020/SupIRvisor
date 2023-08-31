@@ -3,7 +3,6 @@ from __future__ import annotations
 import pickle
 import re
 import time
-from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -141,6 +140,18 @@ class SemanticScholarSearcher:
 
         return paper_json["data"][paper_idx]
 
+    @staticmethod
+    def _find_matching_author(retrieved_authors: JsonDict, paper_json: JsonDict) -> str | None:
+        """Find the most likely author by counting the number of shared co authors"""
+        co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
+        author_score: dict[str, int] = {}
+        for author in retrieved_authors["data"]:
+            author_score[author["authorId"]] = sum(
+                co_author["authorId"] in co_author_ids
+                for paper in author["papers"]
+                for co_author in paper["authors"]
+            )
+        return max(author_score, key=lambda x: author_score[x]) if author_score else None
 
     def search_author_by_name(self, author_name: str, paper_json: JsonDict) -> str | None:
         """
@@ -149,20 +160,8 @@ class SemanticScholarSearcher:
 
         If there are no search results from the API this returns none
         """
-        co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
         retrieved_authors = self.query_engine.search_author_by_name(author_name)
-
-        # Find the most likely author by counting the number of shared co authors
-        author_score: dict[str, int] = defaultdict(int)
-        for author in retrieved_authors["data"]:
-            potential_match_id = author["authorId"]
-            # count the number of matching co_authors
-            for paper in author["papers"]:
-                for co_author in paper["authors"]:
-                    if co_author["authorId"] in co_author_ids:
-                        author_score[potential_match_id] += 1
-
-        return max(author_score, key=lambda x: author_score[x]) if author_score else None
+        return self._find_matching_author(retrieved_authors, paper_json)
     
     def search_author_by_id(self, author_id: str) -> JsonDict:
         return self.query_engine.search_author_by_id(author_id)

@@ -105,39 +105,42 @@ class SemanticScholarSearcher:
             paper_json["title"], paper.title
         ) or SemanticScholarSearcher._shares_author(paper_json, paper)
 
+    @staticmethod
+    def _has_results(paper_json: JsonDict) -> bool:
+        return paper_json["total"] > 0
+    
+    def _query_paper(self, query: str) -> JsonDict:
+        return self.query_engine.search_paper(query)
+
     def _get_paper_candidates(self, paper: Paper) -> JsonDict | None:
-        paper_json = self.query_engine.search_paper(paper.title)
+        paper_json = self._query_paper(paper.title)
+        if self._has_results(paper_json):
+            return paper_json
 
-        # If the search has no results, the paper might have been renamed, try adding the author
-        if paper_json["total"] == 0:
-            title_with_author = f"{paper.title} {paper.authorships[0].author_name}"
-            paper_json = self.query_engine.search_paper(title_with_author)
+        # The paper might have been renamed, try adding the author
+        title_with_author = f"{paper.title} {paper.authorships[0].author_name}"
+        paper_json = self._query_paper(title_with_author)
+        if self._has_results(paper_json):
+            return paper_json
 
-        # If the search still no results: remove words from the end of the title
-        # (sometimes missing spaces confuses SemanticScholar)
-        title = paper.title
-        while paper_json["total"] == 0:
-            title_words = title.split(" ")
-            # too few search terms will give a poor result, so treat the paper as unfindable
-            if len(title_words) < 3:
-                return None
-            title = " ".join(title_words[:-1])
-            paper_json = self.query_engine.search_paper(title)
-        return paper_json
+        # Remove words from the end of the title (sometimes missing spaces confuses SemanticScholar)
+        title_words = paper.title.split(" ")
+        for i in range(1, len(title_words) - 2):
+            title_truncated = " ".join(title_words[:-i])
+            paper_json = self._query_paper(title_truncated)
+            if self._has_results(paper_json):
+                return paper_json
+        return None
     
     def _match_paper_to_candidates(self, paper: Paper, paper_candidates: JsonDict) -> JsonDict | None:
         """
         Return the first paper with a matching author
         note: the paper may have been renamed, but by the same author
         """
-        paper_idx = 0
-        total_papers = len(paper_candidates["data"])
-        while not self._is_same_paper(paper_candidates["data"][paper_idx], paper):
-            paper_idx += 1
-            if paper_idx == total_papers:  # no matches found in all the results
-                return None
-
-        return paper_candidates["data"][paper_idx]
+        for candidate_paper in paper_candidates["data"]:
+            if self._is_same_paper(candidate_paper, paper):
+                return candidate_paper
+        return None
 
     def search_paper(self, paper: Paper) -> JsonDict | None:
         """Search for the paper on Semantic Scholar"""

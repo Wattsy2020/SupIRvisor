@@ -5,3 +5,4 @@ python -m mypy main.py
 python -m mypy src/analyse_conf/*.py
 python -m mypy tests/*.py
 python -m pytest -v tests/*.py
+python -m black **/*.py --line-length 120

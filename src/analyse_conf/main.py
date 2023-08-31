@@ -15,9 +15,7 @@ if TYPE_CHECKING:
     from analyse_conf.data import Author, Authorship, Paper
 
 OUTPUT_DIR = Path("outputs")
-CONFERENCE_TO_WEBSCRAPER = {
-    "SIGIR2022": sigir_extract
-}
+CONFERENCE_TO_WEBSCRAPER = {"SIGIR2022": sigir_extract}
 
 
 def webscrape_conference_data(conference: str) -> list[Paper]:
@@ -58,7 +56,7 @@ def write_class_list(objects: Sequence[attr.AttrsInstance], file_name: Path) -> 
 
 def write_data(conference: str, papers: list[Paper], authors: list[Author], authorships: list[Authorship]) -> None:
     output_dir = make_output_dir(conference)
-    write_class_list(authors, output_dir / "authors.csv") # type: ignore[arg-type]
+    write_class_list(authors, output_dir / "authors.csv")  # type: ignore[arg-type]
     write_class_list(papers, output_dir / "papers.csv")
     write_class_list(authorships, output_dir / "authorships.csv")
 
@@ -70,7 +68,9 @@ def analyse_conf(conference: str) -> None:
     TODO: Perform analysis of this data
         TODO: Create visualisations and tables of the results
     """
-    logging.basicConfig(filename='download.log', format='%(asctime)s %(message)s', filemode="w", encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(
+        filename="download.log", format="%(asctime)s %(message)s", filemode="w", encoding="utf-8", level=logging.DEBUG
+    )
     papers = webscrape_conference_data(conference)
     authors = query_author_data(papers)
     authorships = get_authorships(papers)

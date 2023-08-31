@@ -18,6 +18,7 @@ class SemanticScholarQuerier:
     A context manager that makes queries to the semantic scholar API
     Keeps a persisted cache of previous queries, to avoid duplicate queries across sessions.
     """
+
     api_path: str = field(default="https://api.semanticscholar.org/graph/v1")
     cache_path: Path = field(converter=Path, default=Path(".api_cache"))
     _cache: dict[str, JsonDict] = field(factory=dict)
@@ -63,15 +64,11 @@ class SemanticScholarQuerier:
 
     def search_author_by_id(self, author_id: str) -> JsonDict:
         """Return the author json for the given id"""
-        return self.__get_json(
-            f"author/{author_id}?fields=name,affiliations,paperCount,citationCount,hIndex"
-        )
-    
+        return self.__get_json(f"author/{author_id}?fields=name,affiliations,paperCount,citationCount,hIndex")
+
     def search_author_by_name(self, author_name: str) -> JsonDict:
         cleaned_name = self.__clean_query(author_name)
-        return self.__get_json(
-            f"author/search?query={cleaned_name}&fields=papers.authors&limit=20"
-        )
+        return self.__get_json(f"author/search?query={cleaned_name}&fields=papers.authors&limit=20")
 
 
 class SemanticScholarSearcher:
@@ -83,7 +80,7 @@ class SemanticScholarSearcher:
     def __enter__(self) -> SemanticScholarSearcher:
         self.query_engine = SemanticScholarQuerier().__enter__()
         return self
-    
+
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.query_engine.__exit__(exc_type, exc_val, exc_tb)
 
@@ -104,10 +101,9 @@ class SemanticScholarSearcher:
         Check if a paper returned by search API matches the query, i.e. it has the same title,
         or is written by the same author (the paper name likely changed)
         """
-        return (
-            SemanticScholarSearcher._equal_titles(paper_json["title"], paper.title) 
-            or SemanticScholarSearcher._shares_author(paper_json, paper)
-        )
+        return SemanticScholarSearcher._equal_titles(
+            paper_json["title"], paper.title
+        ) or SemanticScholarSearcher._shares_author(paper_json, paper)
 
     def search_paper(self, paper: Paper) -> JsonDict | None:
         """Search for the paper on Semantic Scholar"""
@@ -143,14 +139,11 @@ class SemanticScholarSearcher:
     @staticmethod
     def _find_matching_author(retrieved_authors: JsonDict, paper_json: JsonDict) -> str | None:
         """Find the most likely author by counting the number of shared co authors"""
-        co_author_ids = {author_json["authorId"] for author_json in paper_json["authors"]}
+        paper_coauthors = {author_json["authorId"] for author_json in paper_json["authors"]}
         author_score: dict[str, int] = {}
         for author in retrieved_authors["data"]:
-            author_score[author["authorId"]] = sum(
-                co_author["authorId"] in co_author_ids
-                for paper in author["papers"]
-                for co_author in paper["authors"]
-            )
+            all_coauthor_ids = (co_author["authorId"] for paper in author["papers"] for co_author in paper["authors"])
+            author_score[author["authorId"]] = sum(co_author_id in paper_coauthors for co_author_id in all_coauthor_ids)
         return max(author_score, key=lambda x: author_score[x]) if author_score else None
 
     def search_author_by_name(self, author_name: str, paper_json: JsonDict) -> str | None:
@@ -162,6 +155,6 @@ class SemanticScholarSearcher:
         """
         retrieved_authors = self.query_engine.search_author_by_name(author_name)
         return self._find_matching_author(retrieved_authors, paper_json)
-    
+
     def search_author_by_id(self, author_id: str) -> JsonDict:
         return self.query_engine.search_author_by_id(author_id)

@@ -24,17 +24,20 @@ def test_get_author() -> None:
 
 def test_search_author() -> None:
     """Test that searching for authors correctly matches based on co_author info"""
-    test_author_id = '2067085425'
-    test_author_name = 'Nicholas Lim'
+    test_author_id = "2067085425"
+    test_author_name = "Nicholas Lim"
     test_paper_json = {
-        'paperId': '684877258525dced03ebb049c7bf3c3c69999f9f', 
-        'title': 'Hierarchical Multi-Task Graph Recurrent Network for Next POI Recommendation',
-        'authors': [
-                {'authorId': None, 'name': 'Nicholas Lim'}, {'authorId': '2019961', 'name': 'Bryan Hooi'},
-                {'authorId': '1794527', 'name': 'See-Kiong Ng'}, {'authorId': '1995261298', 'name': 'Yong Liang Goh'},
-                {'authorId': '49361860', 'name': 'Renrong Weng'}, {'authorId': '2052819973', 'name': 'Rui Tan'}
-            ]
-        }
+        "paperId": "684877258525dced03ebb049c7bf3c3c69999f9f",
+        "title": "Hierarchical Multi-Task Graph Recurrent Network for Next POI Recommendation",
+        "authors": [
+            {"authorId": None, "name": "Nicholas Lim"},
+            {"authorId": "2019961", "name": "Bryan Hooi"},
+            {"authorId": "1794527", "name": "See-Kiong Ng"},
+            {"authorId": "1995261298", "name": "Yong Liang Goh"},
+            {"authorId": "49361860", "name": "Renrong Weng"},
+            {"authorId": "2052819973", "name": "Rui Tan"},
+        ],
+    }
     with SemanticScholarSearcher() as search_engine:
         calc_author_id = search_engine.search_author_by_name(test_author_name, test_paper_json)
     assert test_author_id == calc_author_id, "Wrong author ids retrieved"
@@ -47,15 +50,15 @@ def test_query_cache() -> None:
 
     # Check queries are written to the in memory cache
     with SemanticScholarQuerier(cache_path=str(cache_path)) as query_engine:
-        query_engine._SemanticScholarQuerier__get_json(test_url) # type: ignore # mypy doesn't understand private variable accessing
-        assert test_url in query_engine._cache, "URL is not cached to dict" # type: ignore
+        query_engine._SemanticScholarQuerier__get_json(test_url)  # type: ignore # mypy doesn't understand private variable accessing
+        assert test_url in query_engine._cache, "URL is not cached to dict"  # type: ignore
 
     # Open the persisted cache and check its contents
     assert cache_path.exists(), "Cache file not created"
     cache = pickle.load(cache_path.open("rb"))
     assert test_url in cache, "Queried URL is not stored in cache"
     cache_path.unlink()
- 
+
 
 def test_get_paper(papers: list[Paper]) -> None:
     """Test that a subset of papers from SIGIR can be found using SemanticScholarSearch.search_paper"""
@@ -69,8 +72,9 @@ def test_get_paper(papers: list[Paper]) -> None:
                 continue
             assert "authors" in paper_json, f"Authors field isn't returned for {paper.title=}"
             assert len(paper_json["authors"]) >= 1, f"There are no authors for a paper for {paper.title=}"
-            assert SemanticScholarSearcher._is_same_paper(paper_json, paper), \
-                f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
+            assert SemanticScholarSearcher._is_same_paper(
+                paper_json, paper
+            ), f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
 
 
 def test_get_paper_author_consistency(papers: list[Paper]) -> None:
@@ -83,4 +87,6 @@ def test_get_paper_author_consistency(papers: list[Paper]) -> None:
                 continue
             if len(paper_json["authors"]) != len(paper.authorships):
                 num_inconsistent_authors += 1
-    warnings.warn(f"For {num_inconsistent_authors} papers, a different number of authors are found by the SemanticScholar API")
+    warnings.warn(
+        f"For {num_inconsistent_authors} papers, a different number of authors are found by the SemanticScholar API"
+    )

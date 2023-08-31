@@ -27,7 +27,7 @@ def initialise_name(name: str) -> tuple[str, list[str]]:
 
 
 def levenshtein_distance(left: str, right: str) -> int:
-    distance = Levenshtein.distance(left, right) # type: ignore
+    distance = Levenshtein.distance(left, right)  # type: ignore
     assert isinstance(distance, int)
     return distance
 
@@ -68,9 +68,9 @@ def extract_author(
 
 
 _author_id_map: dict[str, Author] = {}
-def get_authors(
-    paper_json: JsonDict, search_engine: SemanticScholarSearcher
-) -> list[Author]:
+
+
+def get_authors(paper_json: JsonDict, search_engine: SemanticScholarSearcher) -> list[Author]:
     """Extract all authors for a given `paper_json`. Uses a cache"""
     paper_authors: list[Author] = []
     for author_id_json in paper_json["authors"]:
@@ -129,7 +129,9 @@ def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Aut
     return matched_authors
 
 
-def get_papers_from_api(papers: list[Paper], search_engine: SemanticScholarSearcher) -> Iterator[tuple[Paper, JsonDict]]:
+def get_papers_from_api(
+    papers: list[Paper], search_engine: SemanticScholarSearcher
+) -> Iterator[tuple[Paper, JsonDict]]:
     for paper in tqdm(papers):
         if paper_json := search_engine.search_paper(paper):
             yield paper, paper_json

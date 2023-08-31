@@ -19,7 +19,7 @@ def get_paper_tags(url: str) -> list[bs4.element.Tag]:
     response.raise_for_status()
     html = response.content
     soup = bs4.BeautifulSoup(html, "html.parser")
-    body_text = soup.find("div", class_="post-body") # the main body of text
+    body_text = soup.find("div", class_="post-body")  # the main body of text
     assert isinstance(body_text, bs4.element.Tag)
     paragraphs = body_text.find_all("p")
     return paragraphs
@@ -27,7 +27,7 @@ def get_paper_tags(url: str) -> list[bs4.element.Tag]:
 
 def extract_title(tag: bs4.element.Tag) -> str:
     """Get the paper title from a paragraph tag"""
-    bolded_title = tag.b # titles are bolded
+    bolded_title = tag.b  # titles are bolded
     assert bolded_title is not None
     return bolded_title.text.strip()
 

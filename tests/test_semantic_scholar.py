@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 import pickle
 import warnings
 from pathlib import Path
@@ -6,7 +7,6 @@ from analyse_conf.data import Paper
 from analyse_conf.semantic_scholar import (
     SemanticScholarQuerier,
     SemanticScholarSearcher,
-    is_same_paper,
 )
 
 
@@ -69,7 +69,7 @@ def test_get_paper(papers: list[Paper]) -> None:
                 continue
             assert "authors" in paper_json, f"Authors field isn't returned for {paper.title=}"
             assert len(paper_json["authors"]) >= 1, f"There are no authors for a paper for {paper.title=}"
-            assert is_same_paper(paper_json, paper), \
+            assert SemanticScholarSearcher._is_same_paper(paper_json, paper), \
                 f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
 
 

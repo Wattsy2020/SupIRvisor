@@ -105,8 +105,7 @@ class SemanticScholarSearcher:
             paper_json["title"], paper.title
         ) or SemanticScholarSearcher._shares_author(paper_json, paper)
 
-    def search_paper(self, paper: Paper) -> JsonDict | None:
-        """Search for the paper on Semantic Scholar"""
+    def _get_paper_candidates(self, paper: Paper) -> JsonDict | None:
         paper_json = self.query_engine.search_paper(paper.title)
 
         # If the search has no results, the paper might have been renamed, try adding the author
@@ -124,17 +123,26 @@ class SemanticScholarSearcher:
                 return None
             title = " ".join(title_words[:-1])
             paper_json = self.query_engine.search_paper(title)
-
-        # If the top paper doesn't have a matching author, look at the next results
-        # note: the paper may have been renamed, but by the same author
+        return paper_json
+    
+    def _match_paper_to_candidates(self, paper: Paper, paper_candidates: JsonDict) -> JsonDict | None:
+        """
+        Return the first paper with a matching author
+        note: the paper may have been renamed, but by the same author
+        """
         paper_idx = 0
-        total_papers = len(paper_json["data"])
-        while not self._is_same_paper(paper_json["data"][paper_idx], paper):
+        total_papers = len(paper_candidates["data"])
+        while not self._is_same_paper(paper_candidates["data"][paper_idx], paper):
             paper_idx += 1
             if paper_idx == total_papers:  # no matches found in all the results
                 return None
 
-        return paper_json["data"][paper_idx]
+        return paper_candidates["data"][paper_idx]
+
+    def search_paper(self, paper: Paper) -> JsonDict | None:
+        """Search for the paper on Semantic Scholar"""
+        paper_candidates = self._get_paper_candidates(paper)
+        return self._match_paper_to_candidates(paper, paper_candidates) if paper_candidates else None
 
     @staticmethod
     def _find_matching_author(retrieved_authors: JsonDict, paper_json: JsonDict) -> str | None:

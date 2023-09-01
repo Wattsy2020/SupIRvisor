@@ -59,7 +59,6 @@ def extract_author(
     search_engine: SemanticScholarSearcher,
 ) -> Author | None:
     """Search the API for author_id_json, then create and return an Author object"""
-    # search for the Author if no id is given
     if author_id_json["authorId"] is None:
         assert author_id_json["name"] is not None
         author_id = search_engine.search_author_by_name(author_id_json["name"], paper_json)
@@ -76,29 +75,24 @@ def extract_author(
 _author_id_map: dict[str, Author] = {}
 
 
-def get_authors(paper_json: JsonDict, search_engine: SemanticScholarSearcher) -> list[Author]:
+def get_authors(paper_json: JsonDict, search_engine: SemanticScholarSearcher) -> Iterator[Author]:
     """Extract all authors for a given `paper_json`. Uses a cache"""
-    paper_authors: list[Author] = []
     for author_id_json in paper_json["authors"]:
         author_id: str | None = author_id_json["authorId"]
+        if author_id and (author := _author_id_map.get(author_id)):
+            yield author
+            continue
 
-        # Search API for authors we haven't extracted yet
-        if author_id is None or author_id not in _author_id_map:
-            author = extract_author(author_id_json, paper_json, search_engine)
-            if not author:  # failed to find author
-                continue
+        author = extract_author(author_id_json, paper_json, search_engine)
+        if not author:
+            continue
+        yield author
 
-            # Map author_ids to this extracted author
-            # (including outdated ones that differ between Paper and Author API)
-            # Do not map author_id of None, as there are multiple such author_ids
-            if author_id is None:  # update so we can later retrieve the author
-                author_id = author.author_id
-            elif author_id != author.author_id:
-                _author_id_map[author_id] = author
-            _author_id_map[author.author_id] = author
-
-        paper_authors.append(_author_id_map[author_id])
-    return paper_authors
+        # Map author_ids to this extracted author, 
+        # including outdated ones that differ between Paper and Author API
+        if author_id and author_id != author.author_id:
+            _author_id_map[author_id] = author
+        _author_id_map[author.author_id] = author
 
 
 def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Author]:
@@ -152,7 +146,7 @@ def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     with SemanticScholarSearcher() as search_engine:
         for paper, paper_json in get_papers_from_api(papers, search_engine):
             paper_authors = get_authors(paper_json, search_engine)
-            matched_authors = match_authors_to_authorships(paper_authors, paper)
+            matched_authors = match_authors_to_authorships(list(paper_authors), paper)
 
             # yield any matched authors not previously yielded
             new_authors = matched_authors.difference(filtered_authors)

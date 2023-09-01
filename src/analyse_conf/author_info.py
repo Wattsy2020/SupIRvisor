@@ -53,23 +53,28 @@ class Name:
         return levenshtein_distance(self.name, other.name)
 
 
+def extract_author_id(
+    author_id_json: dict[str, str | None],
+    paper_json: JsonDict,
+    search_engine: SemanticScholarSearcher,
+) -> str | None:
+    if author_id_json["authorId"]:
+        return author_id_json["authorId"]
+    assert author_id_json["name"] is not None
+    return search_engine.search_author_by_name(author_id_json["name"], paper_json)
+
+
 def extract_author(
     author_id_json: dict[str, str | None],
     paper_json: JsonDict,
     search_engine: SemanticScholarSearcher,
 ) -> Author | None:
-    """Search the API for author_id_json, then create and return an Author object"""
-    if author_id_json["authorId"] is None:
-        assert author_id_json["name"] is not None
-        author_id = search_engine.search_author_by_name(author_id_json["name"], paper_json)
-    else:
-        author_id = author_id_json["authorId"]
-
-    # query API and create author object
-    if author_id:
-        author_json = search_engine.search_author_by_id(author_id)
-        return Author.from_api_json(author_json)
-    return None
+    """Search the API for the author's id, then create and return an Author object"""
+    author_id = extract_author_id(author_id_json, paper_json, search_engine)
+    if not author_id:
+        return None
+    author_json = search_engine.search_author_by_id(author_id)
+    return Author.from_api_json(author_json)
 
 
 _author_id_map: dict[str, Author] = {}

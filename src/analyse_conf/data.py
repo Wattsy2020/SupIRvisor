@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import Any, Sequence
 
 import Levenshtein
+import pandas as pd
 from attrs import define, field
 
 JsonDict = dict[str, Any]
@@ -54,8 +56,24 @@ class Name:
         return self.name
 
 
+class RowConvertable(ABC):
+    @abstractmethod
+    def to_row(self) -> list[str]:
+        ...
+
+    @classmethod
+    @abstractmethod
+    def col_names(cls) -> list[str]:
+        ...
+
+    @classmethod
+    def to_dataframe(cls, objects: Sequence[RowConvertable]) -> pd.DataFrame:
+        rows = [object.to_row() for object in objects]
+        return pd.DataFrame(rows, columns=objects[0].col_names())
+
+
 @define(slots=True, frozen=True)
-class Paper:
+class Paper(RowConvertable):
     """Simple class to store information about a paper"""
 
     title: str
@@ -66,18 +84,32 @@ class Paper:
     def from_author_names(cls, title: str, paper_type: str, author_names: list[str]):
         return Paper(title, paper_type, [Authorship(title, name) for name in author_names])
 
+    @classmethod
+    def col_names(cls) -> list[str]:
+        return ["title", "type"]
+
+    def to_row(self) -> list[str]:
+        return [self.title, self.type]
+
 
 @define(slots=True, hash=True)
-class Authorship:
+class Authorship(RowConvertable):
     """Intermediate class to represent the many-to-many relationship between papers and authors"""
 
     title: str = field(hash=True)
     author_name: Name = field(converter=Name, hash=True)
     author_id: str | None = field(default=None)  # the SemanticScholar authorId, to be populated later
 
+    @classmethod
+    def col_names(cls) -> list[str]:
+        return ["title", "author_name", "author_id"]
+
+    def to_row(self) -> list[str]:
+        return [self.title, str(self.author_name), self.author_id or ""]
+
 
 @define(slots=True, hash=True)
-class Author:
+class Author(RowConvertable):
     """Represents an author"""
 
     # name can be used for comparison, but is unreliable as there are duplicates
@@ -102,3 +134,10 @@ class Author:
             h_index=author_json["hIndex"],
             institution=author_json["affiliations"][0] if author_json["affiliations"] else None,
         )
+    
+    @classmethod
+    def col_names(cls) -> list[str]:
+        return ["author_name", "author_id", "citations", "paper_count", "h_index", "institution"]
+    
+    def to_row(self) -> list[str]:
+        return [str(self.author_name), self.author_id, str(self.citations) or "", str(self.paper_count) or "", str(self.h_index) or "", self.institution or ""]

@@ -4,15 +4,10 @@ from __future__ import annotations
 import logging
 import pprint
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
-
-import attr
-import pandas as pd
+from typing import Sequence
 
 from analyse_conf import author_info, sigir_extract
-
-if TYPE_CHECKING:
-    from analyse_conf.data import Author, Authorship, Paper
+from analyse_conf.data import Author, Authorship, Paper, RowConvertable
 
 OUTPUT_DIR = Path("outputs")
 CONFERENCE_TO_WEBSCRAPER = {"SIGIR2022": sigir_extract}
@@ -46,11 +41,10 @@ def make_output_dir(conf: str) -> Path:
     return output_dir
 
 
-def write_class_list(objects: Sequence[attr.AttrsInstance], file_name: Path) -> None:
+def write_class_list(objects: Sequence[RowConvertable], file_name: Path) -> None:
     """Write a list of attrs objects to a csv file, overwriting old results"""
     file_name.unlink(missing_ok=True)
-    rows = [attr.asdict(obj) for obj in objects]
-    df = pd.DataFrame(rows)
+    df = RowConvertable.to_dataframe(objects)
     df.to_csv(file_name, index=False)
 
 

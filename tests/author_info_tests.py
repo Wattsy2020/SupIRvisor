@@ -1,34 +1,34 @@
 """Tests author_info.py"""
-from analyse_conf.author_info import initialise_name, is_initialed, name_distance
+from analyse_conf.author_info import Name
 from analyse_conf.data import Author
 
 
 def test_is_initialed() -> None:
-    assert is_initialed("L. watts")
-    assert not is_initialed("Liam Watts")
-    assert is_initialed("Terence C. S. Tao")  # test initialed middle names are also recognized
-    assert not is_initialed("Terence Chi-Shen Tao")
-    assert is_initialed("Liam W.")  # even last names can be initialed
-    assert is_initialed("Liam W")
-    assert not is_initialed(" Liam ")  # sanity check
+    assert Name("L. watts").is_initialed
+    assert not Name("Liam Watts").is_initialed
+    assert Name("Terence C. S. Tao").is_initialed  # test initialed middle names are also recognized
+    assert not Name("Terence Chi-Shen Tao").is_initialed
+    assert Name("Liam W.").is_initialed  # even last names can be initialed
+    assert Name("Liam W").is_initialed
+    assert not Name(" Liam ").is_initialed  # sanity check
 
 
 def test_initialise_name() -> None:
-    assert initialise_name("liam watts") == ("l. watts", ["l."])
-    assert initialise_name("francis william watts") == ("f. w. watts", ["f.", "w."])
-    assert initialise_name("saul") == ("saul", [])
-    assert initialise_name("l. watts") == ("l. watts", ["l."])
+    assert Name("liam watts").initialised() == ("l. watts", ["l."])
+    assert Name("francis william watts").initialised() == ("f. w. watts", ["f.", "w."])
+    assert Name("saul").initialised() == ("saul", [])
+    assert Name("l. watts").initialised() == ("l. watts", ["l."])
 
 
 def test_name_distance() -> None:
-    assert name_distance("liam watts", "liam watts") == 0
-    assert name_distance("liam watts", "liAm WATts") == 0, "name distance should not be case sensitive"
-    assert name_distance("liam watts", "lifm wftts") == 2
-    assert name_distance("liam watts", "l. watts") == 0
-    assert name_distance("liam watts", "L. watts") == 0
-    assert name_distance("Liam watts", "l. watts") == 0
-    assert name_distance("liam watts", "l watts") == 0
-    assert name_distance("liam watts", "d. watts") == 4, "incorrect initialisms don't have a high distance"
+    assert Name("liam watts").distance(Name("liam watts")) == 0
+    assert Name("liam watts").distance(Name("liAm WATts")) == 0, "name distance should not be case sensitive"
+    assert Name("liam watts").distance(Name("lifm wftts")) == 2
+    assert Name("liam watts").distance(Name("l. watts")) == 0
+    assert Name("liam watts").distance(Name("L. watts")) == 0
+    assert Name("Liam watts").distance(Name("l. watts")) == 0
+    assert Name("liam watts").distance(Name("l watts")) == 0
+    assert Name("liam watts").distance(Name("d. watts")) == 4, "incorrect initialisms don't have a high distance"
 
 
 def test_get_author_data(authors: list[Author]) -> None:

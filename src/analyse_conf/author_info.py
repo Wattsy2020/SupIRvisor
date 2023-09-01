@@ -5,46 +5,52 @@ import re
 from typing import Iterator
 
 import Levenshtein
+from attrs import define, field
 from tqdm import tqdm
 
 from analyse_conf.data import Author, JsonDict, Paper
 from analyse_conf.semantic_scholar import SemanticScholarSearcher
 
 
-def is_initialed(name: str) -> bool:
-    """
-    Determine whether a name is initialised, e.g. as L. Watts or L Watts
-    match strings that have a single isolated char with an optional dot
-    """
-    return bool(re.match(r".*(?:^| ).[\.]?(?:$| ).*", name))
-
-
-def initialise_name(name: str) -> tuple[str, list[str]]:
-    """Convert a full written name into an intialised one, e.g. Liam Watts -> L. Watts"""
-    name_sections = name.split(" ")
-    initials = [f"{name_sec[0]}." for name_sec in name_sections[:-1]]
-    return " ".join(initials + [name_sections[-1]]), initials
+def lowercase(string: str) -> str:
+    return string.lower()
 
 
 def levenshtein_distance(left: str, right: str) -> int:
-    distance = Levenshtein.distance(left, right)  # type: ignore
-    assert isinstance(distance, int)
-    return distance
+        distance = Levenshtein.distance(left, right)  # type: ignore
+        assert isinstance(distance, int)
+        return distance
 
 
-def name_distance(name1: str, name2: str) -> int:
-    """
-    Calculate the levenshtein distance between two names
-    Also account for academic naming fashion of using initials, e.g. writing L. Watts for Liam Watts
-    """
-    name1 = name1.lower()
-    name2 = name2.lower()
-    if is_initialed(name1) or is_initialed(name2):
-        initialed_name1, initials1 = initialise_name(name1)
-        initialed_name2, initials2 = initialise_name(name2)
-        if initials1 == initials2:
-            return levenshtein_distance(initialed_name1, initialed_name2)
-    return levenshtein_distance(name1, name2)
+@define(frozen=True, slots=True)
+class Name:
+    name: str = field(converter=lowercase)
+
+    # match strings that have a single isolated char with an optional dot
+    INITIALED_NAME_PATTERN = re.compile(r".*(?:^| )\w[\.]?(?:$| ).*")
+
+    @property
+    def is_initialed(self) -> bool:
+        """Whether a name is initialised, e.g. as L. Watts or L Watts"""
+        return bool(re.match(Name.INITIALED_NAME_PATTERN, self.name))
+
+    def initialised(self) -> tuple[str, list[str]]:
+        """Convert a full written name into an intialised one, e.g. Liam Watts -> L. Watts"""
+        *name_parts, last_name = self.name.split(" ")
+        initials = [f"{part[0]}." for part in name_parts]
+        return " ".join(initials + [last_name]), initials
+
+    def distance(self, other: Name) -> int:
+        """
+        Calculate the levenshtein distance between two names
+        Also account for academic naming fashion of using initials, e.g. writing L. Watts for Liam Watts
+        """
+        if self.is_initialed or other.is_initialed:
+            initialed_name, initials = self.initialised()
+            other_initialed_name, other_initials = other.initialised()
+            if initials == other_initials:
+                return levenshtein_distance(initialed_name, other_initialed_name)
+        return levenshtein_distance(self.name, other.name)
 
 
 def extract_author(
@@ -109,7 +115,7 @@ def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Aut
     for author in authors:
         # Greedily match the current Author against all authorships that haven't been matched with
         distances = {
-            authorship: name_distance(author.author_name, authorship.author_name)
+            authorship: Name(author.author_name).distance(Name(authorship.author_name))
             for authorship in paper.authorships
             if authorship.author_id is None
         }

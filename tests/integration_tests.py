@@ -1,7 +1,7 @@
 import warnings
 from collections import Counter
 
-from analyse_conf.author_info import name_distance
+from analyse_conf.author_info import Name
 from analyse_conf.data import Author, Paper
 from analyse_conf.semantic_scholar import SemanticScholarSearcher
 
@@ -42,7 +42,7 @@ def test_get_author_paper_consistency(papers: list[Paper], authors: list[Author]
 
                     name1 = authorship.author_name
                     name2 = author_id_map[authorship.author_id].author_name
-                    if name_distance(name1, name2) > 5:
+                    if Name(name1).distance(Name(name2)) > 5:
                         different_name_matches.append((name1, name2))
 
     assert authors_with_papers == set(author_id_map.keys()), "Some authors have not been assigned to a paper"

@@ -86,5 +86,4 @@ def extract_paper_data(paper_tags: list[bs4.element.Tag]) -> list[Paper]:
 def extract_data() -> list[Paper]:
     """Return the paper and authorship data for SIGIR2022"""
     paper_tags = get_paper_tags("https://sigir.org/sigir2022/program/accepted/")
-    papers = extract_paper_data(paper_tags)
-    return papers
+    return extract_paper_data(paper_tags)

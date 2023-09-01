@@ -92,7 +92,7 @@ class SemanticScholarSearcher:
     @staticmethod
     def _shares_author(paper_json: JsonDict, paper: Paper) -> bool:
         """Check if the paper_json shares any authors with a paper"""
-        target_authors = {authorship.author_name for authorship in paper.authorships}
+        target_authors = {str(authorship.author_name) for authorship in paper.authorships}
         return any(author["name"].lower() in target_authors for author in paper_json["authors"])
 
     @staticmethod

@@ -4,11 +4,12 @@ import pickle
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import requests
 from attrs import define, field
 from pydantic import BaseModel
+from tqdm import tqdm
 
 from analyse_conf.data import JsonDict, Paper
 
@@ -185,6 +186,11 @@ class SemanticScholarSearcher:
         """Search for the paper on Semantic Scholar"""
         paper_candidates = self._get_paper_candidates(paper)
         return self._match_paper_to_candidates(paper, paper_candidates)
+
+    def get_papers(self, papers: list[Paper]) -> Iterator[tuple[Paper, SemanticScholarPaper]]:
+        for paper in tqdm(papers):
+            if paper_response := self.search_paper(paper):
+                yield paper, paper_response
 
     @staticmethod
     def _find_matching_author(retrieved_authors: list[AuthorWithPapers], paper: SemanticScholarPaper) -> str | None:

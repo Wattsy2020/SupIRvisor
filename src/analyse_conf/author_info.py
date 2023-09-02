@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from typing import Iterator
 
-from tqdm import tqdm
-
 from analyse_conf.data import Author, Paper
 from analyse_conf.semantic_scholar import (
     PaperAuthor,
@@ -91,14 +89,6 @@ def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Aut
     return matched_authors
 
 
-def get_papers_from_api(
-    papers: list[Paper], search_engine: SemanticScholarSearcher
-) -> Iterator[tuple[Paper, SemanticScholarPaper]]:
-    for paper in tqdm(papers):
-        if paper_response := search_engine.search_paper(paper):
-            yield paper, paper_response
-
-
 def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     """
     Create authors and extract their data from SemanticScholar
@@ -106,8 +96,8 @@ def get_author_data(papers: list[Paper]) -> Iterator[Author]:
     """
     filtered_authors: set[Author] = set()
     with SemanticScholarSearcher() as search_engine:
-        for paper, paper_json in get_papers_from_api(papers, search_engine):
-            paper_authors = get_authors(paper_json, search_engine)
+        for paper, paper_response in search_engine.get_papers(papers):
+            paper_authors = get_authors(paper_response, search_engine)
             matched_authors = match_authors_to_authorships(list(paper_authors), paper)
 
             # yield any matched authors not previously yielded

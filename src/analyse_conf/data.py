@@ -122,18 +122,6 @@ class Author(RowConvertable):
     paper_count: int | None = field(default=None, hash=False, eq=False, order=False)
     h_index: int | None = field(default=None, hash=False, eq=False, order=False)
     institution: str | None = field(default=None, hash=False, eq=False, order=False)  # not always available in the API
-
-    @classmethod
-    def from_api_json(cls, author_json: dict[str, Any]) -> Author:
-        """Create author class from JSON returned by the SemanticScholar API"""
-        return cls(
-            author_name=author_json["name"],
-            author_id=author_json["authorId"],
-            citations=author_json["citationCount"],
-            paper_count=author_json["paperCount"],
-            h_index=author_json["hIndex"],
-            institution=author_json["affiliations"][0] if author_json["affiliations"] else None,
-        )
     
     @classmethod
     def col_names(cls) -> list[str]:

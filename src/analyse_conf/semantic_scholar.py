@@ -11,7 +11,7 @@ from attrs import define, field
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from analyse_conf.data import JsonDict, Paper
+from analyse_conf.data import Author, JsonDict, Paper
 
 
 class AuthoredPaper(BaseModel):
@@ -34,7 +34,25 @@ class AuthorSearchResponse(BaseModel):
     data: list[AuthorWithPapers]
 
 
-# Complete Author Search Response
+class CompleteAuthor(BaseModel):
+    """The result of searching an author by id, and requesting all the fields"""
+    authorId: str
+    name: str
+    paperCount: int
+    citationCount: int
+    hIndex: int
+    institution: str | None = None
+
+    def to_author(self) -> Author:
+        return Author(
+            author_name=self.name, 
+            author_id=self.authorId,
+            citations=self.citationCount,
+            paper_count=self.paperCount,
+            h_index=self.hIndex,
+            institution=self.institution,
+        )
+
 
 class PaperAuthor(BaseModel):
     """
@@ -213,5 +231,5 @@ class SemanticScholarSearcher:
         retrieved_authors = AuthorSearchResponse(**response).data
         return self._find_matching_author(retrieved_authors, paper)
 
-    def search_author_by_id(self, author_id: str) -> JsonDict:
-        return self.query_engine.search_author_by_id(author_id)
+    def search_author_by_id(self, author_id: str) -> CompleteAuthor:
+        return CompleteAuthor(**self.query_engine.search_author_by_id(author_id))

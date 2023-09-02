@@ -28,9 +28,7 @@ def extract_author(
     author_id = extract_author_id(author, paper, search_engine)
     if not author_id:
         return None
-    author_json = search_engine.search_author_by_id(author_id)
-    # convert this to SemanticScholarAuthor.to_author
-    return Author.from_api_json(author_json)
+    return search_engine.search_author_by_id(author_id).to_author()
 
 
 _author_id_map: dict[str, Author] = {}

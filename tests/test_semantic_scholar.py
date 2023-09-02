@@ -5,9 +5,29 @@ from pathlib import Path
 
 from analyse_conf.data import Paper
 from analyse_conf.semantic_scholar import (
+    PaperAuthor,
+    SemanticScholarPaper,
     SemanticScholarQuerier,
     SemanticScholarSearcher,
 )
+
+
+def test_paper_pydantic_model() -> None:
+    data_json = {
+        "paperId": "e7f84913bd00348d72da10b033d6e91829d13172",
+        "title": "Flipping the Script",
+        "authors": [
+            {"authorId": "150162316", "name": "Joshua Seltzer"},
+            {"authorId": "2142236015", "name": "Kathy Cheng"},
+            {"authorId": "49392769", "name": "Shi Zong"},
+            {"authorId": "2154743374", "name": "Jimmy Lin"},
+        ],
+    }
+    paper = SemanticScholarPaper(**data_json)  # type: ignore
+    assert paper.paperId == data_json["paperId"]
+    assert paper.title == data_json["title"]
+    author = PaperAuthor(**{"authorId": "150162316", "name": "Joshua Seltzer"})  # type: ignore
+    assert paper.authors[0] == author
 
 
 def test_get_author() -> None:
@@ -38,8 +58,9 @@ def test_search_author() -> None:
             {"authorId": "2052819973", "name": "Rui Tan"},
         ],
     }
+    test_paper = SemanticScholarPaper(**test_paper_json)  # type: ignore
     with SemanticScholarSearcher() as search_engine:
-        calc_author_id = search_engine.search_author_by_name(test_author_name, test_paper_json)
+        calc_author_id = search_engine.search_author_by_name(test_author_name, test_paper)
     assert test_author_id == calc_author_id, "Wrong author ids retrieved"
 
 
@@ -65,16 +86,15 @@ def test_get_paper(papers: list[Paper]) -> None:
     with SemanticScholarSearcher() as search_engine:
         for paper in papers:
             first_author_name = paper.authorships[0].author_name
-            paper_json = search_engine.search_paper(paper)
+            paper_response = search_engine.search_paper(paper)
 
-            if paper_json is None:
+            if paper_response is None:
                 warnings.warn(f"No paper found for {paper.title=}")
                 continue
-            assert "authors" in paper_json, f"Authors field isn't returned for {paper.title=}"
-            assert len(paper_json["authors"]) >= 1, f"There are no authors for a paper for {paper.title=}"
+            assert paper_response.authors, f"There are no authors for a paper for {paper.title=}"
             assert SemanticScholarSearcher._is_same_paper(
-                paper_json, paper
-            ), f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_json['title']=}"
+                paper_response, paper
+            ), f"Retrieved a paper with a different title, or author {paper.title=} {first_author_name=} {paper_response.title=}"
 
 
 def test_get_paper_author_consistency(papers: list[Paper]) -> None:
@@ -82,11 +102,9 @@ def test_get_paper_author_consistency(papers: list[Paper]) -> None:
     num_inconsistent_authors = 0
     with SemanticScholarSearcher() as search_engine:
         for paper in papers:
-            paper_json = search_engine.search_paper(paper)
-            if paper_json is None:
-                continue
-            if len(paper_json["authors"]) != len(paper.authorships):
-                num_inconsistent_authors += 1
+            if paper_response := search_engine.search_paper(paper):
+                if len(paper_response.authors) != len(paper.authorships):
+                    num_inconsistent_authors += 1
     warnings.warn(
         f"For {num_inconsistent_authors} papers, a different number of authors are found by the SemanticScholar API"
     )

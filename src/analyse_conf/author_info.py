@@ -5,55 +5,56 @@ from typing import Iterator
 
 from tqdm import tqdm
 
-from analyse_conf.data import Author, JsonDict, Paper
-from analyse_conf.semantic_scholar import SemanticScholarSearcher
+from analyse_conf.data import Author, Paper
+from analyse_conf.semantic_scholar import (
+    PaperAuthor,
+    SemanticScholarPaper,
+    SemanticScholarSearcher,
+)
 
 
 def extract_author_id(
-    author_id_json: dict[str, str | None],
-    paper_json: JsonDict,
+    author: PaperAuthor,
+    paper: SemanticScholarPaper,
     search_engine: SemanticScholarSearcher,
 ) -> str | None:
-    if author_id_json["authorId"]:
-        return author_id_json["authorId"]
-    assert author_id_json["name"] is not None
-    return search_engine.search_author_by_name(author_id_json["name"], paper_json)
+    return author.authorId or search_engine.search_author_by_name(author.name, paper)
 
 
 def extract_author(
-    author_id_json: dict[str, str | None],
-    paper_json: JsonDict,
+    author: PaperAuthor,
+    paper: SemanticScholarPaper,
     search_engine: SemanticScholarSearcher,
 ) -> Author | None:
     """Search the API for the author's id, then create and return an Author object"""
-    author_id = extract_author_id(author_id_json, paper_json, search_engine)
+    author_id = extract_author_id(author, paper, search_engine)
     if not author_id:
         return None
     author_json = search_engine.search_author_by_id(author_id)
+    # convert this to SemanticScholarAuthor.to_author
     return Author.from_api_json(author_json)
 
 
 _author_id_map: dict[str, Author] = {}
 
 
-def get_authors(paper_json: JsonDict, search_engine: SemanticScholarSearcher) -> Iterator[Author]:
+def get_authors(paper: SemanticScholarPaper, search_engine: SemanticScholarSearcher) -> Iterator[Author]:
     """Extract all authors for a given `paper_json`. Uses a cache"""
-    for author_id_json in paper_json["authors"]:
-        author_id: str | None = author_id_json["authorId"]
-        if author_id and (author := _author_id_map.get(author_id)):
-            yield author
+    for author in paper.authors:
+        if author.authorId and (parsed_author := _author_id_map.get(author.authorId)):
+            yield parsed_author
             continue
 
-        author = extract_author(author_id_json, paper_json, search_engine)
-        if not author:
+        parsed_author = extract_author(author, paper, search_engine)
+        if not parsed_author:
             continue
-        yield author
+        yield parsed_author
 
         # Map author_ids to this extracted author, 
         # including outdated ones that differ between Paper and Author API
-        if author_id and author_id != author.author_id:
-            _author_id_map[author_id] = author
-        _author_id_map[author.author_id] = author
+        if author.authorId and author.authorId != parsed_author.author_id:
+            _author_id_map[author.authorId] = parsed_author
+        _author_id_map[parsed_author.author_id] = parsed_author
 
 
 def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Author]:
@@ -92,10 +93,10 @@ def match_authors_to_authorships(authors: list[Author], paper: Paper) -> set[Aut
 
 def get_papers_from_api(
     papers: list[Paper], search_engine: SemanticScholarSearcher
-) -> Iterator[tuple[Paper, JsonDict]]:
+) -> Iterator[tuple[Paper, SemanticScholarPaper]]:
     for paper in tqdm(papers):
-        if paper_json := search_engine.search_paper(paper):
-            yield paper, paper_json
+        if paper_response := search_engine.search_paper(paper):
+            yield paper, paper_response
 
 
 def get_author_data(papers: list[Paper]) -> Iterator[Author]:

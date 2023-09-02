@@ -198,9 +198,8 @@ class SemanticScholarSearcher:
         paper_coauthors = {author.authorId for author in paper.authors}
         author_score: dict[str, int] = {}
         for author in retrieved_authors:
-            # TODO: make this a set and calculate size of intersection below
-            all_coauthor_ids = (co_author.authorId for paper in author.papers for co_author in paper.authors)
-            author_score[author.authorId] = sum(co_author_id in paper_coauthors for co_author_id in all_coauthor_ids)
+            coauthor_ids = {co_author.authorId for paper in author.papers for co_author in paper.authors}
+            author_score[author.authorId] = len(paper_coauthors.intersection(coauthor_ids))
         return max(author_score, key=lambda x: author_score[x]) if author_score else None
 
     def search_author_by_name(self, author_name: str, paper: SemanticScholarPaper) -> str | None:

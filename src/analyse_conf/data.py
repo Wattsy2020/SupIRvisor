@@ -82,7 +82,7 @@ class Paper(RowConvertable):
 
     @classmethod
     def from_author_names(cls, title: str, paper_type: str, author_names: list[str]):
-        return Paper(title, paper_type, [Authorship(title, name) for name in author_names])
+        return Paper(title, paper_type, [Authorship(title, name, position) for position, name in enumerate(author_names)])
 
     @classmethod
     def col_names(cls) -> list[str]:
@@ -98,14 +98,15 @@ class Authorship(RowConvertable):
 
     title: str = field(hash=True)
     author_name: Name = field(converter=Name, hash=True)
+    author_position: int
     author_id: str | None = field(default=None)  # the SemanticScholar authorId, to be populated later
 
     @classmethod
     def col_names(cls) -> list[str]:
-        return ["title", "author_name", "author_id"]
+        return ["title", "author_name", "author_position", "author_id"]
 
     def to_row(self) -> list[str]:
-        return [self.title, str(self.author_name), self.author_id or ""]
+        return [self.title, str(self.author_name), str(self.author_position), self.author_id or ""]
 
 
 @define(slots=True, hash=True)
